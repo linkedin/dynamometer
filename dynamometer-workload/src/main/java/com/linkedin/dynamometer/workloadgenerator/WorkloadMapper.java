@@ -13,7 +13,7 @@ import org.apache.hadoop.mapreduce.Mapper;
 
 /**
  * Represents the base class for a generic workload-generating mapper. By default, it will expect to use
- * {@link VirtualInputFormat} as its {@link InputFormat}. Subclasses expecting a different {@link InputFormat}
+ * {@link TimedInputFormat} as its {@link InputFormat}. Subclasses expecting a different {@link InputFormat}
  * should override the {@link #getInputFormat(Configuration)} method.
  */
 public abstract class WorkloadMapper<KEYIN, VALUEIN> extends Mapper<KEYIN, VALUEIN, NullWritable, NullWritable> {
@@ -22,7 +22,7 @@ public abstract class WorkloadMapper<KEYIN, VALUEIN> extends Mapper<KEYIN, VALUE
    * Return the input class to be used by this mapper.
    */
   public Class<? extends InputFormat> getInputFormat(Configuration conf) {
-    return VirtualInputFormat.class;
+    return TimedInputFormat.class;
   }
 
   /**

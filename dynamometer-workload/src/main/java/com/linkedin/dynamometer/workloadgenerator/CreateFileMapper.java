@@ -4,27 +4,27 @@
  */
 package com.linkedin.dynamometer.workloadgenerator;
 
-import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
  * <p>CreateFileMapper continuously creates 1 byte files for the specified duration to increase the
- * number of file objects on the NN.
+ * number of file objects on the NN. This uses {@link TimedInputFormat}; see its Javadoc for configuration
+ * information.
  *
  * <p>Configuration options available:
  * <ul>
- *   <li>{@value NUM_MAPPERS_KEY} (required): Number of mappers to launch.</li>
- *   <li>{@value DURATION_MIN_KEY} (required): Number of minutes to induce workload for.</li>
  *   <li>{@value SHOULD_DELETE_KEY} (default: {@value SHOULD_DELETE_DEFAULT}): If true, delete the files
  *       after creating them. This can be useful for generating constant load without increasing the
  *       number of file objects.</li>
@@ -32,10 +32,8 @@ import org.apache.hadoop.mapreduce.Mapper;
  *       in which to create files.</li>
  * </ul>
  */
-public class CreateFileMapper extends WorkloadMapper<NullWritable, NullWritable> {
+public class CreateFileMapper extends WorkloadMapper<LongWritable, NullWritable> {
 
-  public static final String NUM_MAPPERS_KEY = "createfile.num-mappers";
-  public static final String DURATION_MIN_KEY = "createfile.duration-min";
   public static final String FILE_PARENT_PATH_KEY = "createfile.file-parent-path";
   public static final String FILE_PARENT_PATH_DEFAULT = "/tmp/createFileMapper";
   public static final String SHOULD_DELETE_KEY = "createfile.should-delete";
@@ -45,13 +43,12 @@ public class CreateFileMapper extends WorkloadMapper<NullWritable, NullWritable>
     NUMFILESCREATED
   }
 
-  private long startTimestampMs;
+  private static final Logger LOG = LoggerFactory.getLogger(CreateFileMapper.class);
+  private static final byte[] FILE_CONTENT = { 0x0 };
+
   private FileSystem fs;
-  private Configuration conf;
-  private int taskID;
-  private String fileParentPath;
+  private Path filePrefix;
   private boolean shouldDelete;
-  private long endTimeStampMs;
 
   @Override
   public String getDescription() {
@@ -60,64 +57,41 @@ public class CreateFileMapper extends WorkloadMapper<NullWritable, NullWritable>
 
   @Override
   public List<String> getConfigDescriptions() {
-    return Lists.newArrayList(
-        NUM_MAPPERS_KEY + " (required): Number of mappers to launch.",
-        DURATION_MIN_KEY + " (required): Number of minutes to induce workload for.",
-        SHOULD_DELETE_KEY + " (default: " + SHOULD_DELETE_DEFAULT + "): If true, delete the files after creating " +
-            "them. This can be useful for generating constant load without increasing the number of file objects.",
-        FILE_PARENT_PATH_KEY + " (default: " + FILE_PARENT_PATH_DEFAULT +
-            "): The root directory in which to create files."
-    );
+    List<String> baseList = TimedInputFormat.getConfigDescriptions();
+    baseList.add(SHOULD_DELETE_KEY + " (default: " + SHOULD_DELETE_DEFAULT +
+        "): If true, delete the files after creating them. This can be useful for generating constant load " +
+        "without increasing the number of file objects.");
+    baseList.add(FILE_PARENT_PATH_KEY + " (default: " + FILE_PARENT_PATH_DEFAULT +
+        "): The root directory in which to create files.");
+    return baseList;
   }
 
   @Override
   public boolean verifyConfigurations(Configuration conf) {
-    return conf.get(NUM_MAPPERS_KEY) != null && conf.get(DURATION_MIN_KEY) != null;
+    return TimedInputFormat.verifyConfigurations(conf);
   }
 
   @Override
-  public void map(NullWritable key, NullWritable value, Mapper.Context mapperContext)
-      throws IOException, InterruptedException {
-    taskID = mapperContext.getTaskAttemptID().getTaskID().getId();
-    conf = mapperContext.getConfiguration();
+  public void setup(Mapper.Context context) throws IOException {
+    Configuration conf = context.getConfiguration();
     String namenodeURI = conf.get(WorkloadDriver.NN_URI);
-    startTimestampMs = conf.getLong(WorkloadDriver.START_TIMESTAMP_MS, -1);
-    fileParentPath = conf.get(FILE_PARENT_PATH_KEY, FILE_PARENT_PATH_DEFAULT);
-    shouldDelete = conf.getBoolean(SHOULD_DELETE_KEY, SHOULD_DELETE_DEFAULT);
-    int durationMin = conf.getInt(DURATION_MIN_KEY, -1);
-    if (durationMin < 0) {
-      throw new IOException("Duration must be positive; got: " + durationMin);
-    }
-    endTimeStampMs = startTimestampMs + TimeUnit.MILLISECONDS.convert(durationMin, TimeUnit.MINUTES);
     fs = FileSystem.get(URI.create(namenodeURI), conf);
-    System.out.println("Start timestamp: " + startTimestampMs);
+    shouldDelete = conf.getBoolean(SHOULD_DELETE_KEY, SHOULD_DELETE_DEFAULT);
+    String fileParentPath = conf.get(FILE_PARENT_PATH_KEY, FILE_PARENT_PATH_DEFAULT);
+    int taskID = context.getTaskAttemptID().getTaskID().getId();
+    filePrefix = new Path(String.format("%s/mapper%s/file", fileParentPath, taskID));
+    LOG.info("Mapper path prefix: " + filePrefix);
+  }
 
-    long currentEpoch = System.currentTimeMillis();
-    long delay = startTimestampMs - currentEpoch;
-    if (delay > 0) {
-      System.out.println("Sleeping for " + delay + " ms");
-      Thread.sleep(delay);
-    }
-
-    String mapperSpecifcPathPrefix = fileParentPath + "/mapper" + taskID;
-    System.out.println("Mapper path prefix: " + mapperSpecifcPathPrefix);
-    long numFilesCreated = 0;
-    Path path;
-    final byte[] content = {0x0};
-    while (System.currentTimeMillis() < endTimeStampMs ) {
-      path = new Path(mapperSpecifcPathPrefix + "/file" + numFilesCreated);
-      OutputStream out = fs.create(path);
-      out.write(content);
-      out.close();
-      numFilesCreated++;
-      mapperContext.getCounter(CREATEFILECOUNTERS.NUMFILESCREATED).increment(1L);
-      if (numFilesCreated % 1000 == 0) {
-        mapperContext.progress();
-        System.out.println("Number of files created: " + numFilesCreated);
-      }
-      if (shouldDelete) {
-        fs.delete(path);
-      }
+  @Override
+  public void map(LongWritable key, NullWritable value, Mapper.Context mapperContext) throws IOException {
+    Path path = filePrefix.suffix(key.get() + "");
+    OutputStream out = fs.create(path);
+    out.write(FILE_CONTENT);
+    out.close();
+    mapperContext.getCounter(CREATEFILECOUNTERS.NUMFILESCREATED).increment(1L);
+    if (shouldDelete) {
+      fs.delete(path, true);
     }
   }
 }
