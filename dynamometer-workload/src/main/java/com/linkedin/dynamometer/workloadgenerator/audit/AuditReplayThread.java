@@ -61,8 +61,9 @@ public class AuditReplayThread extends Thread {
   private Map<REPLAYCOUNTERS, Counter> replayCountersMap = new HashMap<>();
   private Map<String, Counter> individualCommandsMap = new HashMap<>();
 
-  AuditReplayThread(Mapper.Context mapperContext) throws IOException {
-    commandQueue = new DelayQueue<>();
+  AuditReplayThread(Mapper.Context mapperContext, DelayQueue<AuditReplayCommand> queue)
+      throws IOException {
+    commandQueue = queue;
     Configuration mapperConf = mapperContext.getConfiguration();
     String namenodeURI = mapperConf.get(WorkloadDriver.NN_URI);
     startTimestampMs = mapperConf.getLong(WorkloadDriver.START_TIMESTAMP_MS, -1);
