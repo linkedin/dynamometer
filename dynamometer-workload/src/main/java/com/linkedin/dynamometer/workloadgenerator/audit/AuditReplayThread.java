@@ -21,6 +21,10 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.hdfs.DFSClient;
+import org.apache.hadoop.hdfs.DynoDFSUtil;
+import org.apache.hadoop.hdfs.DistributedFileSystem;
+import org.apache.hadoop.hdfs.protocol.HdfsFileStatus;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.counters.GenericCounter;
@@ -50,6 +54,7 @@ public class AuditReplayThread extends Thread {
   private Exception exception;
   private long startTimestampMs;
   private FileSystem fs;
+  private DFSClient dfsClient;
   private boolean createBlocks;
 
   // Counters are not thread-safe so we store a local mapping in our thread
@@ -65,6 +70,7 @@ public class AuditReplayThread extends Thread {
     createBlocks = mapperConf.getBoolean(AuditReplayMapper.CREATE_BLOCKS_KEY,
         AuditReplayMapper.CREATE_BLOCKS_DEFAULT);
     fs = FileSystem.get(URI.create(namenodeURI), mapperConf);
+    dfsClient = DynoDFSUtil.getDFSClient((DistributedFileSystem) fs);
     LOG.info("Start timestamp: " + startTimestampMs);
     for (REPLAYCOUNTERS rc : REPLAYCOUNTERS.values()) {
       replayCountersMap.put(rc, new GenericCounter());
@@ -185,7 +191,7 @@ public class AuditReplayThread extends Thread {
           break;
 
         case LISTSTATUS:
-          fs.listStatus(new Path(src));
+          dfsClient.listPaths(src, HdfsFileStatus.EMPTY_NAME);
           break;
 
         case APPEND:
@@ -193,7 +199,7 @@ public class AuditReplayThread extends Thread {
           return true;
 
         case DELETE:
-          fs.delete(new Path(src), false);
+          fs.delete(new Path(src), true);
           break;
 
         case OPEN:

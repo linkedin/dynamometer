@@ -4,6 +4,7 @@
  */
 dependencies {
   compile deps.hadoop.common
+  compile deps.hadoop.hdfs
   compile deps.hadoop.'mapreduce-client-core'
 
   testCompile deps.hadoop.minicluster
