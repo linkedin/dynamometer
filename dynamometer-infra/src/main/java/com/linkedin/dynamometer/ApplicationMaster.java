@@ -295,8 +295,8 @@ public class ApplicationMaster {
 
     Optional<Properties> namenodeProperties = Optional.absent();
     if (launchNameNode) {
-      ContainerRequest nnContainerRequest = setupContainerAskForRM(
-          amOptions.getNameNodeMemoryMB(), amOptions.getNameNodeVirtualCores(), 0);
+      ContainerRequest nnContainerRequest = setupContainerAskForRM(amOptions.getNameNodeMemoryMB(),
+          amOptions.getNameNodeVirtualCores(), 0, amOptions.getNameNodeNodeLabelExpression());
       LOG.info("Requested NameNode ask: " + nnContainerRequest.toString());
       amRMClient.addContainerRequest(nnContainerRequest);
 
@@ -333,7 +333,7 @@ public class ApplicationMaster {
         amOptions.getDataNodeVirtualCores() + " vcores, ");
     for (int i = 0; i < numTotalDataNodeContainers; ++i) {
       ContainerRequest datanodeAsk = setupContainerAskForRM(amOptions.getDataNodeMemoryMB(),
-          amOptions.getDataNodeVirtualCores(), 1);
+          amOptions.getDataNodeVirtualCores(), 1, amOptions.getDataNodeNodeLabelExpression());
       amRMClient.addContainerRequest(datanodeAsk);
       LOG.debug("Requested datanode ask: " + datanodeAsk.toString());
     }
@@ -789,7 +789,7 @@ public class ApplicationMaster {
    *
    * @return the setup ResourceRequest to be sent to RM
    */
-  private ContainerRequest setupContainerAskForRM(int memory, int vcores, int priority) {
+  private ContainerRequest setupContainerAskForRM(int memory, int vcores, int priority, String nodeLabel) {
     Priority pri = Records.newRecord(Priority.class);
     pri.setPriority(priority);
 
@@ -799,7 +799,7 @@ public class ApplicationMaster {
     capability.setMemory(memory);
     capability.setVirtualCores(vcores);
 
-    return new ContainerRequest(capability, null, null, pri);
+    return new ContainerRequest(capability, null, null, pri, true, nodeLabel);
   }
 
 }

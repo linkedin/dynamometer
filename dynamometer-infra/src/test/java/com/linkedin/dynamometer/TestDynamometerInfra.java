@@ -6,6 +6,7 @@ package com.linkedin.dynamometer;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Supplier;
+import com.google.common.collect.Sets;
 import com.linkedin.dynamometer.workloadgenerator.audit.AuditLogDirectParser;
 import com.linkedin.dynamometer.workloadgenerator.audit.AuditReplayMapper;
 import java.io.File;
@@ -14,8 +15,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -38,10 +42,18 @@ import org.apache.hadoop.util.JarFinder;
 import org.apache.hadoop.util.Shell;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
+import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.server.MiniYARNCluster;
+import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Container;
+import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacitySchedulerConfiguration;
+import org.apache.hadoop.yarn.util.resource.DominantResourceCalculator;
+import org.apache.hadoop.yarn.util.resource.ResourceCalculator;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -81,7 +93,7 @@ public class TestDynamometerInfra {
 
   private static final Log LOG = LogFactory.getLog(TestDynamometerInfra.class);
 
-  private static final int MINICLUSTER_NUM_NMS = 1;
+  private static final int MINICLUSTER_NUM_NMS = 3;
   private static final int MINICLUSTER_NUM_DNS = 1;
 
   private static final String HADOOP_BIN_PATH_KEY = "dyno.hadoop.bin.path";
@@ -89,6 +101,9 @@ public class TestDynamometerInfra {
   private static final String HADOOP_BIN_VERSION_DEFAULT = "2.7.6";
   private static final String FSIMAGE_FILENAME = "fsimage_0000000000000061740";
   private static final String VERSION_FILENAME = "VERSION";
+
+  private static final String NAMENODE_NODELABEL = "dyno_namenode";
+  private static final String DATANODE_NODELABEL = "dyno_datanode";
 
   private static MiniDFSCluster miniDFSCluster;
   private static MiniYARNCluster miniYARNCluster;
@@ -144,12 +159,23 @@ public class TestDynamometerInfra {
       fail("Unable to execute tar to expand Hadoop binary");
     }
 
-    conf.setBoolean("yarn.minicluster.fixed.ports", true);
-    conf.setBoolean("yarn.minicluster.use-rpc", true);
-    conf.setInt("yarn.scheduler.minimum-allocation-mb", 128);
+    conf.setBoolean(YarnConfiguration.YARN_MINICLUSTER_FIXED_PORTS, true);
+    conf.setBoolean(YarnConfiguration.YARN_MINICLUSTER_USE_RPC, true);
+    conf.setInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, 128);
+    conf.setBoolean(YarnConfiguration.NODE_LABELS_ENABLED, true);
+    for (String q : new String[] { "root", "root.default" } ) {
+      conf.setInt(CapacitySchedulerConfiguration.PREFIX + q + "." + CapacitySchedulerConfiguration.CAPACITY, 100);
+      String accessibleNodeLabelPrefix = CapacitySchedulerConfiguration.PREFIX + q + "." +
+          CapacitySchedulerConfiguration.ACCESSIBLE_NODE_LABELS;
+      conf.set(accessibleNodeLabelPrefix, CapacitySchedulerConfiguration.ALL_ACL);
+      conf.setInt(
+          accessibleNodeLabelPrefix + "." + DATANODE_NODELABEL + "." + CapacitySchedulerConfiguration.CAPACITY, 100);
+      conf.setInt(
+          accessibleNodeLabelPrefix + "." + NAMENODE_NODELABEL + "." + CapacitySchedulerConfiguration.CAPACITY, 100);
+    }
     // This is necessary to have the RM respect our vcore allocation request
-    conf.set("yarn.scheduler.capacity.resource-calculator",
-        "org.apache.hadoop.yarn.util.resource.DominantResourceCalculator");
+    conf.setClass(CapacitySchedulerConfiguration.RESOURCE_CALCULATOR_CLASS,
+        DominantResourceCalculator.class, ResourceCalculator.class);
     miniYARNCluster = new MiniYARNCluster(
         TestDynamometerInfra.class.getName(), 1, MINICLUSTER_NUM_NMS, 1, 1);
     miniYARNCluster.init(conf);
@@ -176,6 +202,12 @@ public class TestDynamometerInfra {
     uploadFsimageResourcesToHDFS(hadoopBinVersion);
 
     miniYARNCluster.waitForNodeManagersToConnect(30000);
+
+    RMNodeLabelsManager nodeLabelManager = miniYARNCluster.getResourceManager().getRMContext().getNodeLabelManager();
+    Map<NodeId, Set<String>> nodeLabels = new HashMap<>();
+    nodeLabels.put(miniYARNCluster.getNodeManager(0).getNMContext().getNodeId(), Sets.newHashSet(NAMENODE_NODELABEL));
+    nodeLabels.put(miniYARNCluster.getNodeManager(1).getNMContext().getNodeId(), Sets.newHashSet(DATANODE_NODELABEL));
+    nodeLabelManager.addLabelsToNode(nodeLabels);
   }
 
   @AfterClass
@@ -228,8 +260,10 @@ public class TestDynamometerInfra {
               "-" + Client.HADOOP_BINARY_PATH_ARG, hadoopTarballPath.getAbsolutePath(),
               "-" + AMOptions.DATANODES_PER_CLUSTER_ARG, "2",
               "-" + AMOptions.DATANODE_MEMORY_MB_ARG, "128",
+              "-" + AMOptions.DATANODE_NODELABEL_ARG, DATANODE_NODELABEL,
               "-" + AMOptions.NAMENODE_MEMORY_MB_ARG, "256",
               "-" + AMOptions.NAMENODE_METRICS_PERIOD_ARG, "1",
+              "-" + AMOptions.NAMENODE_NODELABEL_ARG, NAMENODE_NODELABEL,
               "-" + AMOptions.SHELL_ENV_ARG, "HADOOP_HOME=" + getHadoopHomeLocation(),
               "-" + AMOptions.SHELL_ENV_ARG, "HADOOP_CONF_DIR=" + getHadoopHomeLocation() + "/etc/hadoop",
               "-" + Client.WORKLOAD_REPLAY_ENABLE_ARG,
@@ -295,6 +329,15 @@ public class TestDynamometerInfra {
       LOG.error("Failed to write or read", e);
       throw e;
     }
+
+    Map<ContainerId, Container> namenodeContainers = miniYARNCluster.getNodeManager(0).getNMContext().getContainers();
+    Map<ContainerId, Container> datanodeContainers = miniYARNCluster.getNodeManager(1).getNMContext().getContainers();
+    Map<ContainerId, Container> amContainers = miniYARNCluster.getNodeManager(2).getNMContext().getContainers();
+    assertEquals(1, namenodeContainers.size());
+    assertEquals(2, namenodeContainers.keySet().iterator().next().getContainerId());
+    assertEquals(2, datanodeContainers.size());
+    assertEquals(1, amContainers.size());
+    assertEquals(1, amContainers.keySet().iterator().next().getContainerId());
 
     LOG.info("Waiting for workload job to start and complete");
     GenericTestUtils.waitFor(new Supplier<Boolean>() {
