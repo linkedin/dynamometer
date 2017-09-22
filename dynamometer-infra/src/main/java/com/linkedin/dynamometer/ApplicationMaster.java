@@ -47,6 +47,7 @@ import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.apache.hadoop.yarn.api.ContainerManagementProtocol;
+import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
@@ -143,6 +144,8 @@ public class ApplicationMaster {
   // Directory to use for remote storage (a location on the remote FS which
   // can be accessed by all components)
   private Path remoteStoragePath;
+  // The ACLs to view the launched containers
+  private Map<ApplicationAccessType, String> applicationAcls;
   // The container the NameNode is running within
   private volatile Container namenodeContainer;
   // Map of the containers that the DataNodes are running within
@@ -210,6 +213,8 @@ public class ApplicationMaster {
     Map<String, String> envs = System.getenv();
 
     remoteStoragePath = new Path(envs.get(DynoConstants.REMOTE_STORAGE_PATH_ENV));
+    applicationAcls = new HashMap<>();
+    applicationAcls.put(ApplicationAccessType.VIEW_APP, envs.get(DynoConstants.JOB_ACL_VIEW_ENV));
     launchingUser = envs.get(Environment.USER.name());
     if (envs.containsKey(DynoConstants.REMOTE_NN_RPC_ADDR_ENV)) {
       launchNameNode = false;
@@ -653,6 +658,7 @@ public class ApplicationMaster {
 
       // Set the environment
       ctx.setEnvironment(amOptions.getShellEnv());
+      ctx.setApplicationACLs(applicationAcls);
 
       try {
         ctx.setLocalResources(getLocalResources());

@@ -52,6 +52,7 @@ import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.JobStatus;
+import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
@@ -61,6 +62,7 @@ import org.apache.hadoop.util.ToolRunner;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse;
+import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
@@ -438,6 +440,10 @@ public class Client extends Configured implements Tool {
 
     // Set up the container launch context for the application master
     ContainerLaunchContext amContainer = Records.newRecord(ContainerLaunchContext.class);
+    Map<ApplicationAccessType, String> acls = new HashMap<>();
+    acls.put(ApplicationAccessType.VIEW_APP, getConf().get(
+        MRJobConfig.JOB_ACL_VIEW_JOB, MRJobConfig.DEFAULT_JOB_ACL_VIEW_JOB));
+    amContainer.setApplicationACLs(acls);
 
     FileSystem fs = FileSystem.get(getConf());
     fs.mkdirs(getRemoteStoragePath(getConf(), infraAppId));
@@ -529,6 +535,8 @@ public class Client extends Configured implements Tool {
     setupRemoteResource(appMasterJar, infraAppId, DynoConstants.DYNO_JAR, env);
 
     env.put(DynoConstants.BLOCK_LIST_PATH_ENV, blockListPath);
+    env.put(DynoConstants.JOB_ACL_VIEW_ENV,
+        getConf().get(MRJobConfig.JOB_ACL_VIEW_JOB, MRJobConfig.DEFAULT_JOB_ACL_VIEW_JOB));
 
     env.put(DynoConstants.REMOTE_STORAGE_PATH_ENV, getRemoteStoragePath(getConf(), infraAppId).toString());
 

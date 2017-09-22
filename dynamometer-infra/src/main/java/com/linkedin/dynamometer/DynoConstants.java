@@ -64,6 +64,9 @@ public class DynoConstants {
   // internally by this application
   public static final String REMOTE_NN_RPC_ADDR_ENV = "REMOTE_NN_RPC_ADDR";
 
+  // Environment variable which will contain the view ACLs for the launched containers.
+  public static final String JOB_ACL_VIEW_ENV = "JOB_ACL_VIEW";
+
   /* The following used for AM -> DN, NN communication */
 
   // The name of the file which will store information about the NameNode
