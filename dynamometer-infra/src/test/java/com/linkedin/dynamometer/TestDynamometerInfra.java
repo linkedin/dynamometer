@@ -21,8 +21,10 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.test.GenericTestUtils;
@@ -215,6 +217,7 @@ public class TestDynamometerInfra {
               "-" + Client.BLOCK_LIST_PATH_ARG, blockImageOutputDir.toString(),
               "-" + Client.FS_IMAGE_DIR_ARG, fsImageTmpPath.getParent().toString(),
               "-" + Client.HADOOP_BINARY_PATH_ARG, hadoopTarballPath.getAbsolutePath(),
+              "-" + AMOptions.DATANODES_PER_CLUSTER_ARG, "2",
               "-" + AMOptions.DATANODE_MEMORY_MB_ARG, "128",
               "-" + AMOptions.NAMENODE_MEMORY_MB_ARG, "256",
               "-" + AMOptions.NAMENODE_METRICS_PERIOD_ARG, "1",
@@ -270,13 +273,15 @@ public class TestDynamometerInfra {
     try {
       DistributedFileSystem dynoFS = (DistributedFileSystem)
           FileSystem.get(DynoInfraUtils.getNameNodeHdfsUri(namenodeProperties.get()), conf);
-      Path testFile = new Path("/tmp/test");
+      Path testFile = new Path("/tmp/test/foo");
+      dynoFS.mkdir(testFile.getParent(), FsPermission.getDefault());
       FSDataOutputStream out = dynoFS.create(testFile, (short) 1);
       out.write(42);
       out.hsync();
       out.close();
-      FSDataInputStream in = dynoFS.open(testFile);
-      assertEquals(42, in.read());
+      FileStatus[] stats = dynoFS.listStatus(testFile.getParent());
+      assertEquals(1, stats.length);
+      assertEquals("foo", stats[0].getPath().getName());
     } catch (IOException e) {
       LOG.error("Failed to write or read", e);
       throw e;

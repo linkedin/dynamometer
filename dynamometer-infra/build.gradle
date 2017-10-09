@@ -9,6 +9,7 @@ dependencies {
   compile deps.hadoop.'yarn-api'
   compile deps.hadoop.'yarn-client'
   compile deps.hadoop.'yarn-common'
+  compile deps.hadoop.'hdfs-test'
   compile project(':dynamometer-workload')
 
   testCompile project(path: ':dynamometer-workload', configuration: 'testArtifacts')

@@ -132,6 +132,9 @@ public class Client extends Configured implements Tool {
   public static final String WORKLOAD_THREADS_PER_MAPPER_ARG = "workload_threads_per_mapper";
   public static final String WORKLOAD_START_DELAY_ARG = "workload_start_delay";
 
+  private static final String START_SCRIPT_LOCATION =
+      Client.class.getClassLoader().getResource(DynoConstants.START_SCRIPT.getResourcePath()).toString();
+
   private YarnClient yarnClient;
   // Application master specific info to register a new Application with RM/ASM
   private String appName = "";
@@ -148,8 +151,6 @@ public class Client extends Configured implements Tool {
   private String hadoopBinary = "";
   // Location of DN conf zip
   private String confPath = "";
-  // Location of scripts zip
-  private String scriptsPath = "";
   // Location of root dir for DN block image zips
   private String blockListPath = "";
   // Location of NN fs image
@@ -346,7 +347,6 @@ public class Client extends Configured implements Tool {
     this.amMemory = Integer.parseInt(cliParser.getOptionValue(MASTER_MEMORY_MB_ARG, MASTER_MEMORY_MB_DEFAULT));
     this.amVCores = Integer.parseInt(cliParser.getOptionValue(MASTER_VCORES_ARG, MASTER_VCORES_DEFAULT));
     this.confPath = cliParser.getOptionValue(CONF_PATH_ARG);
-    this.scriptsPath = Client.class.getClassLoader().getResource("scripts").getPath();
     this.blockListPath = cliParser.getOptionValue(BLOCK_LIST_PATH_ARG);
     if (cliParser.hasOption(HADOOP_BINARY_PATH_ARG)) {
       this.hadoopBinary = cliParser.getOptionValue(HADOOP_BINARY_PATH_ARG);
@@ -511,7 +511,7 @@ public class Client extends Configured implements Tool {
     }
     setupRemoteResource(versionFilePath, infraAppId, DynoConstants.VERSION, env);
     setupRemoteResource(confPath, infraAppId, DynoConstants.CONF_ZIP, env);
-    setupRemoteResource(scriptsPath, infraAppId, DynoConstants.SCRIPTS_ZIP, env);
+    setupRemoteResource(START_SCRIPT_LOCATION, infraAppId, DynoConstants.START_SCRIPT, env);
     setupRemoteResource(hadoopBinary, infraAppId, DynoConstants.HADOOP_BINARY, env);
     setupRemoteResource(appMasterJar, infraAppId, DynoConstants.DYNO_JAR, env);
 

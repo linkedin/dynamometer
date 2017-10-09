@@ -163,10 +163,8 @@ First launch the infrastructure application to begin the startup of the internal
     -conf_path my-hadoop-conf
     -fs_image_dir hdfs:///fsimage
     -block_list_path hdfs:///dyno/blocks
-    -datanode_layout_version -56
 ```
-This demonstrates the required arguments. `-datanode_layout_version` is necessary to determine how the block
-files should be laid out on the DataNodes that are launched.
+This demonstrates the required arguments. You can run this with the `-help` flag to see further usage information.
 
 The client will track the Dyno-NN's startup progress and how many Dyno-DNs it considers live. It will notify
 via logging when the Dyno-NN has exited safemode and is ready for use.
@@ -200,11 +198,10 @@ launch an integrated application with the same parameters as were used above, th
     -conf_path my-hadoop-conf
     -fs_image_dir hdfs:///fsimage
     -block_list_path hdfs:///dyno/blocks
-    -datanode_layout_version -56
     -workload_replay_enable
     -workload_input_path hdfs:///dyno/audit_logs/
     -workload_threads_per_mapper 50
     -workload_start_delay 5m
 ```
 When run in this way, the client will automatically handle tearing down the Dyno-HDFS cluster once the
-workload has completed.
+workload has completed. To see the full list of supported parameters, run this with the `-help` flag.
