@@ -39,6 +39,8 @@ class AMOptions {
   public static final String DATANODES_PER_CLUSTER_DEFAULT = "1";
   public static final String DATANODE_LAUNCH_DELAY_ARG = "datanode_launch_delay";
   public static final String DATANODE_LAUNCH_DELAY_DEFAULT = "0s";
+  public static final String NAMENODE_NAME_DIR_ARG = "namenode_name_dir";
+  public static final String NAMENODE_EDITS_DIR_ARG = "namenode_edits_dir";
 
   private final int datanodeMemoryMB;
   private final int datanodeVirtualCores;
@@ -51,6 +53,8 @@ class AMOptions {
   private final String namenodeArgs;
   private final String namenodeNodeLabelExpression;
   private final int namenodeMetricsPeriod;
+  private final String namenodeNameDir;
+  private final String namenodeEditsDir;
   // Original shellEnv as passed in through arguments
   private final Map<String, String> originalShellEnv;
   // Extended shellEnv including custom environment variables
@@ -59,7 +63,7 @@ class AMOptions {
   AMOptions(int datanodeMemoryMB, int datanodeVirtualCores, String datanodeArgs,
       String datanodeNodeLabelExpression, int datanodesPerCluster, String datanodeLaunchDelay, int namenodeMemoryMB,
       int namenodeVirtualCores, String namenodeArgs, String namenodeNodeLabelExpression, int namenodeMetricsPeriod,
-      Map<String, String> shellEnv) {
+      String namenodeNameDir, String namenodeEditsDir, Map<String, String> shellEnv) {
     this.datanodeMemoryMB = datanodeMemoryMB;
     this.datanodeVirtualCores = datanodeVirtualCores;
     this.datanodeArgs = datanodeArgs;
@@ -71,12 +75,16 @@ class AMOptions {
     this.namenodeArgs = namenodeArgs;
     this.namenodeNodeLabelExpression = namenodeNodeLabelExpression;
     this.namenodeMetricsPeriod = namenodeMetricsPeriod;
+    this.namenodeNameDir = namenodeNameDir;
+    this.namenodeEditsDir = namenodeEditsDir;
     this.originalShellEnv = shellEnv;
     this.shellEnv = new HashMap<>(this.originalShellEnv);
     this.shellEnv.put(DynoConstants.NN_ADDITIONAL_ARGS_ENV, this.namenodeArgs);
     this.shellEnv.put(DynoConstants.DN_ADDITIONAL_ARGS_ENV, this.datanodeArgs);
     this.shellEnv.put(DynoConstants.NN_FILE_METRIC_PERIOD_ENV,
         String.valueOf(this.namenodeMetricsPeriod));
+    this.shellEnv.put(DynoConstants.NN_NAME_DIR_ENV, this.namenodeNameDir);
+    this.shellEnv.put(DynoConstants.NN_EDITS_DIR_ENV, this.namenodeEditsDir);
   }
 
   /**
@@ -104,25 +112,25 @@ class AMOptions {
   void addToVargs(List<String> vargs) {
     vargs.add("--" + DATANODE_MEMORY_MB_ARG + " " + String.valueOf(datanodeMemoryMB));
     vargs.add("--" + DATANODE_VCORES_ARG + " " + String.valueOf(datanodeVirtualCores));
-    if (!datanodeArgs.isEmpty()) {
-      vargs.add("--" + DATANODE_ARGS_ARG + " \\\"" + datanodeArgs + "\\\"");
-    }
-    if (!datanodeNodeLabelExpression.isEmpty()) {
-      vargs.add("--" + DATANODE_NODELABEL_ARG + " \\\"" + datanodeNodeLabelExpression + "\\\"");
-    }
+    addStringValToVargs(vargs, DATANODE_ARGS_ARG, datanodeArgs);
+    addStringValToVargs(vargs, DATANODE_NODELABEL_ARG, datanodeNodeLabelExpression);
     vargs.add("--" + DATANODES_PER_CLUSTER_ARG + " " + String.valueOf(datanodesPerCluster));
     vargs.add("--" + DATANODE_LAUNCH_DELAY_ARG + " " + datanodeLaunchDelay);
     vargs.add("--" + NAMENODE_MEMORY_MB_ARG + " " + String.valueOf(namenodeMemoryMB));
     vargs.add("--" + NAMENODE_VCORES_ARG + " " + String.valueOf(namenodeVirtualCores));
-    if (!namenodeArgs.isEmpty()) {
-      vargs.add("--" + NAMENODE_ARGS_ARG + " \\\"" + namenodeArgs + "\\\"");
-    }
-    if (!namenodeNodeLabelExpression.isEmpty()) {
-      vargs.add("--" + NAMENODE_NODELABEL_ARG + " \\\"" + namenodeNodeLabelExpression + "\\\"");
-    }
+    addStringValToVargs(vargs, NAMENODE_ARGS_ARG, namenodeArgs);
+    addStringValToVargs(vargs, NAMENODE_NODELABEL_ARG, namenodeNodeLabelExpression);
     vargs.add("--" + NAMENODE_METRICS_PERIOD_ARG + " " + String.valueOf(namenodeMetricsPeriod));
+    addStringValToVargs(vargs, NAMENODE_NAME_DIR_ARG, namenodeNameDir);
+    addStringValToVargs(vargs, NAMENODE_EDITS_DIR_ARG, namenodeEditsDir);
     for (Map.Entry<String, String> entry : originalShellEnv.entrySet()) {
       vargs.add("--" + SHELL_ENV_ARG + " " + entry.getKey() + "=" + entry.getValue());
+    }
+  }
+
+  private void addStringValToVargs(List<String> vargs, String optionName, String val) {
+    if (!val.isEmpty()) {
+      vargs.add("--" + optionName + " \\\"" + val + "\\\"");
     }
   }
 
@@ -187,6 +195,12 @@ class AMOptions {
         "The period in seconds for the NameNode's metrics to be emitted to file; if <=0, " +
             "disables this functionality. Otherwise, a metrics file will be stored in the " +
             "container logs for the NameNode (default " + NAMENODE_METRICS_PERIOD_DEFAULT + ").");
+    opts.addOption(NAMENODE_NAME_DIR_ARG, true,
+        "The directory to use for the NameNode's name data directory. If not specified, a location " +
+            "within the container's working directory will be used.");
+    opts.addOption(NAMENODE_EDITS_DIR_ARG, true,
+        "The directory to use for the NameNode's edits directory. If not specified, a location " +
+            "within the container's working directory will be used.");
     opts.addOption(DATANODE_MEMORY_MB_ARG, true,
         "Amount of memory in MB to be requested to run the DNs (default " + DATANODE_MEMORY_MB_DEFAULT + ")");
     opts.addOption(DATANODE_VCORES_ARG, true,
@@ -240,6 +254,8 @@ class AMOptions {
         cliParser.getOptionValue(NAMENODE_ARGS_ARG, ""),
         cliParser.getOptionValue(NAMENODE_NODELABEL_ARG, ""),
         Integer.parseInt(cliParser.getOptionValue(NAMENODE_METRICS_PERIOD_ARG, NAMENODE_METRICS_PERIOD_DEFAULT)),
+        cliParser.getOptionValue(NAMENODE_NAME_DIR_ARG, ""),
+        cliParser.getOptionValue(NAMENODE_EDITS_DIR_ARG, ""),
         originalShellEnv);
   }
 
