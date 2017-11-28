@@ -9,12 +9,16 @@ import com.google.common.base.Supplier;
 import com.linkedin.dynamometer.workloadgenerator.audit.AuditLogDirectParser;
 import com.linkedin.dynamometer.workloadgenerator.audit.AuditReplayMapper;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -27,6 +31,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
+import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.test.GenericTestUtils;
 import org.apache.hadoop.mapreduce.Counters;
 import org.apache.hadoop.util.JarFinder;
@@ -94,6 +99,8 @@ public class TestDynamometerInfra {
   private static Path fsImageTmpPath;
   private static Path fsVersionTmpPath;
   private static Path blockImageOutputDir;
+  private static Path auditTraceDir;
+  private static Path confZip;
   private static File testBaseDir;
   private static File hadoopTarballPath;
   private static File hadoopUnpackedDir;
@@ -163,6 +170,8 @@ public class TestDynamometerInfra {
     fsImageTmpPath = fs.makeQualified(new Path("/tmp/" + FSIMAGE_FILENAME));
     fsVersionTmpPath = fs.makeQualified(new Path("/tmp/" + VERSION_FILENAME));
     blockImageOutputDir = fs.makeQualified(new Path("/tmp/blocks"));
+    auditTraceDir = fs.makeQualified(new Path("/tmp/audit_trace_direct"));
+    confZip = fs.makeQualified(new Path("/tmp/conf.zip"));
 
     uploadFsimageResourcesToHDFS(hadoopBinVersion);
 
@@ -213,7 +222,7 @@ public class TestDynamometerInfra {
         try {
           client.run(new String[] {
               "-" + Client.MASTER_MEMORY_MB_ARG, "128",
-              "-" + Client.CONF_PATH_ARG, getResourcePath("conf").toString(),
+              "-" + Client.CONF_PATH_ARG, confZip.toString(),
               "-" + Client.BLOCK_LIST_PATH_ARG, blockImageOutputDir.toString(),
               "-" + Client.FS_IMAGE_DIR_ARG, fsImageTmpPath.getParent().toString(),
               "-" + Client.HADOOP_BINARY_PATH_ARG, hadoopTarballPath.getAbsolutePath(),
@@ -379,8 +388,26 @@ public class TestDynamometerInfra {
     fs.copyFromLocalFile(new Path(getResourcePath(fsImageResourcePath)), fsImageTmpPath);
     fs.copyFromLocalFile(new Path(getResourcePath(fsImageResourcePath + ".md5")), fsImageTmpPath.suffix(".md5"));
     fs.copyFromLocalFile(new Path(getResourcePath(hadoopResourcesPath + "/" + VERSION_FILENAME)), fsVersionTmpPath);
-    fs.copyFromLocalFile(new Path(getResourcePath("blocks")), new Path("/tmp/"));
-    fs.copyFromLocalFile(new Path(getResourcePath("audit_trace_direct")), new Path("/tmp/"));
+    fs.mkdirs(auditTraceDir);
+    IOUtils.copyBytes(TestDynamometerInfra.class.getClassLoader().getResourceAsStream("audit_trace_direct/audit0"),
+        fs.create(new Path(auditTraceDir, "audit0")), conf, true);
+    fs.mkdirs(blockImageOutputDir);
+    for (String blockFile : new String[] { "dn0-a-0-r-00000", "dn1-a-0-r-00001", "dn2-a-0-r-00002" }) {
+      IOUtils.copyBytes(TestDynamometerInfra.class.getClassLoader().getResourceAsStream("blocks/" + blockFile),
+          fs.create(new Path(blockImageOutputDir, blockFile)), conf, true);
+    }
+    File tempConfZip = new File(testBaseDir, "conf.zip");
+    ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(tempConfZip));
+    for (String file : new String[] { "core-site.xml", "hdfs-site.xml", "log4j.properties" }) {
+      zos.putNextEntry(new ZipEntry("etc/hadoop/" + file));
+      InputStream is = TestDynamometerInfra.class.getClassLoader().getResourceAsStream("conf/etc/hadoop/" + file);
+      IOUtils.copyBytes(is, zos, conf, false);
+      is.close();
+      zos.closeEntry();
+    }
+    zos.close();
+    fs.copyFromLocalFile(new Path(tempConfZip.toURI()), confZip);
+    tempConfZip.delete();
   }
 
 }
