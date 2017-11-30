@@ -13,6 +13,8 @@ dependencies {
   compile project(':dynamometer-workload')
 
   testCompile project(path: ':dynamometer-workload', configuration: 'testArtifacts')
+  testCompile deps.hadoop.'common-test'
+  testCompile deps.hadoop.'yarn-server-test'
   testCompile deps.hadoop.minicluster
   testCompile 'junit:junit:4.11'
   testCompile 'org.mockito:mockito-all:1.10.19'

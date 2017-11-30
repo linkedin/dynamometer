@@ -8,6 +8,8 @@ dependencies {
   compile deps.hadoop.'mapreduce-client-core'
 
   testCompile deps.hadoop.minicluster
+  testCompile deps.hadoop.'common-test'
+  testCompile deps.hadoop.'hdfs-test'
   testCompile 'junit:junit:4.11'
 }
 
