@@ -340,7 +340,7 @@ public class ApplicationMaster {
     LOG.info("Finished requesting datanode containers");
 
     if (launchNameNode) {
-      DynoInfraUtils.waitForNameNodeReadiness(namenodeProperties.get(), numTotalDataNodes, exitCritera, LOG);
+      DynoInfraUtils.waitForNameNodeReadiness(namenodeProperties.get(), numTotalDataNodes, true, exitCritera, LOG);
     }
 
     waitForCompletion();

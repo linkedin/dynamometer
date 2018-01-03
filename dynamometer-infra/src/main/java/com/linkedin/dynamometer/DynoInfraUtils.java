@@ -4,6 +4,7 @@
  */
 package com.linkedin.dynamometer;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Supplier;
 import java.io.File;
@@ -11,17 +12,32 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hdfs.DFSUtil;
+import org.apache.hadoop.hdfs.DistributedFileSystem;
+import org.apache.hadoop.hdfs.client.BlockReportOptions;
+import org.apache.hadoop.hdfs.protocol.ClientDatanodeProtocol;
+import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
+import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.Time;
+import org.apache.hadoop.yarn.YarnUncaughtExceptionHandler;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.codehaus.jackson.JsonFactory;
 import org.codehaus.jackson.JsonParser;
@@ -43,11 +59,13 @@ public class DynoInfraUtils {
   public static final String NAMENODE_STARTUP_PROGRESS_JMX_QUERY = "Hadoop:service=NameNode,name=StartupProgress";
   public static final String FSNAMESYSTEM_JMX_QUERY = "Hadoop:service=NameNode,name=FSNamesystem";
   public static final String FSNAMESYSTEM_STATE_JMX_QUERY = "Hadoop:service=NameNode,name=FSNamesystemState";
+  public static final String NAMENODE_INFO_JMX_QUERY = "Hadoop:service=NameNode,name=NameNodeInfo";
   // The JMX property names of various properties.
   public static final String JMX_MISSING_BLOCKS = "MissingBlocks";
   public static final String JMX_UNDER_REPLICATED_BLOCKS = "UnderReplicatedBlocks";
   public static final String JMX_BLOCKS_TOTAL = "BlocksTotal";
   public static final String JMX_LIVE_NODE_COUNT = "NumLiveDataNodes";
+  public static final String JMX_LIVE_NODES_LIST = "LiveNodes";
 
   /**
    * If a file matching {@value HADOOP_TAR_FILENAME_FORMAT} and {@code version} is
@@ -179,7 +197,8 @@ public class DynoInfraUtils {
    * @param log Where to log inormation.
    */
   static void waitForNameNodeReadiness(final Properties nameNodeProperties, int numTotalDataNodes,
-      Supplier<Boolean> shouldExit, final Log log) throws IOException, InterruptedException {
+      boolean triggerBlockReports, Supplier<Boolean> shouldExit, final Log log)
+      throws IOException, InterruptedException {
     if (shouldExit.get()) {
       return;
     }
@@ -189,6 +208,74 @@ public class DynoInfraUtils {
         numTotalDataNodes*0.99, numTotalDataNodes*0.001, false, nameNodeProperties, shouldExit, log);
     final int totalBlocks = Integer.parseInt(fetchNameNodeJMXValue(nameNodeProperties, FSNAMESYSTEM_STATE_JMX_QUERY,
         JMX_BLOCKS_TOTAL));
+    Thread blockReportThread = null;
+    if (triggerBlockReports) {
+      // This will be significantly lower than the actual expected number of blocks because it does not
+      // take into account replication factor. However the block reports are pretty binary; either a full
+      // report has been received or it hasn't. Thus we don't mind the large underestimate here.
+      final int blockThreshold = totalBlocks / numTotalDataNodes * 2;
+      // The Configuration object here is based on the host cluster, which may
+      // have security enabled; we need to disable it to talk to the Dyno NN
+      final Configuration conf = new Configuration();
+      conf.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "simple");
+      conf.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, "false");
+      final DistributedFileSystem dfs =
+          (DistributedFileSystem) FileSystem.get(getNameNodeHdfsUri(nameNodeProperties), conf);
+      log.info("Launching thread to trigger block reports for Datanodes with <" + blockThreshold + " blocks reported");
+      blockReportThread = new Thread() {
+        @Override
+        public void run() {
+          // Here we count both Missing and UnderReplicated within under replicated
+          long lastUnderRepBlocks = Long.MAX_VALUE;
+          try {
+            while (!this.isInterrupted()) {
+              try {
+                Thread.sleep(TimeUnit.MINUTES.toMillis(1));
+                long underRepBlocks = Long.parseLong(
+                    fetchNameNodeJMXValue(nameNodeProperties, FSNAMESYSTEM_JMX_QUERY, JMX_MISSING_BLOCKS)) +
+                    Long.parseLong(fetchNameNodeJMXValue(nameNodeProperties, FSNAMESYSTEM_STATE_JMX_QUERY,
+                        JMX_UNDER_REPLICATED_BLOCKS));
+                long blockDecrease = lastUnderRepBlocks - underRepBlocks;
+                lastUnderRepBlocks = underRepBlocks;
+                if (blockDecrease < 0 || blockDecrease > (totalBlocks * 0.001)) {
+                  continue;
+                }
+
+                String liveNodeListString =
+                    fetchNameNodeJMXValue(nameNodeProperties, NAMENODE_INFO_JMX_QUERY, JMX_LIVE_NODES_LIST);
+                Set<String> datanodesToReport = parseStaleDataNodeList(liveNodeListString, blockThreshold, log);
+                log.info(String.format("Queueing %d Datanodes for block report: %s", datanodesToReport.size(),
+                    Joiner.on(",").join(datanodesToReport)));
+                DatanodeInfo[] datanodes = dfs.getDataNodeStats();
+                int cnt = 0;
+                for (DatanodeInfo datanode : datanodes) {
+                  if (datanodesToReport.contains(datanode.getXferAddr(true))) {
+                    if (this.isInterrupted()) {
+                      break;
+                    }
+                    triggerDataNodeBlockReport(conf, datanode.getIpcAddr(true));
+                    cnt++;
+                    Thread.sleep(1000);
+                  }
+                }
+                if (cnt != datanodesToReport.size()) {
+                  log.warn(String.format(
+                      "Found %d Datanodes to queue block reports for but was only able to trigger %d",
+                      datanodesToReport.size(), cnt));
+                }
+              } catch (IOException ioe) {
+                log.warn("Exception encountered in block report thread", ioe);
+              }
+            }
+          } catch (InterruptedException ie) {
+            // Do nothing; just exit
+          }
+          log.info("Block reporting thread exiting");
+        }
+      };
+      blockReportThread.setUncaughtExceptionHandler(new YarnUncaughtExceptionHandler());
+      blockReportThread.start();
+    }
     log.info("Waiting for MissingBlocks to fall below " + totalBlocks*0.0001 + "...");
     waitForNameNodeJMXValue("Number of missing blocks", FSNAMESYSTEM_JMX_QUERY, JMX_MISSING_BLOCKS,
         totalBlocks*0.0001, totalBlocks*0.0001, true, nameNodeProperties, shouldExit, log);
@@ -196,6 +283,31 @@ public class DynoInfraUtils {
     waitForNameNodeJMXValue("Number of under replicated blocks", FSNAMESYSTEM_STATE_JMX_QUERY,
         JMX_UNDER_REPLICATED_BLOCKS, totalBlocks*0.01, totalBlocks*0.001, true, nameNodeProperties, shouldExit, log);
     log.info("NameNode is ready for use!");
+    if (blockReportThread != null) {
+      blockReportThread.interrupt();
+      log.debug("Interrupted block report thread; joining");
+      blockReportThread.join(5000);
+      if (blockReportThread.isAlive()) {
+        log.debug("Joined block report thread");
+      } else {
+        log.warn("Unable to join block report thread after 5s; continuing");
+      }
+    }
+  }
+
+  /**
+   * Trigger a block report on a given DataNode.
+   * @param conf Configuration
+   * @param dataNodeTarget The target; should be like <host>:<port>
+   */
+  private static void triggerDataNodeBlockReport(Configuration conf, String dataNodeTarget) throws IOException {
+    InetSocketAddress datanodeAddr = NetUtils.createSocketAddr(dataNodeTarget);
+
+    ClientDatanodeProtocol dnProtocol = DFSUtil.createClientDatanodeProtocolProxy(
+        datanodeAddr, UserGroupInformation.getCurrentUser(), conf,
+        NetUtils.getSocketFactory(conf, ClientDatanodeProtocol.class));
+
+    dnProtocol.triggerBlockReport(new BlockReportOptions.Factory().build());
   }
 
   /**
@@ -241,6 +353,47 @@ public class DynoInfraUtils {
       }
       Thread.sleep(3000);
     }
+  }
+
+  static Set<String> parseStaleDataNodeList(String liveNodeJsonString, final int blockThreshold,
+      final Log log) throws IOException {
+    final Set<String> dataNodesToReport = new HashSet<>();
+
+    JsonFactory fac = new JsonFactory();
+    JsonParser parser = fac.createJsonParser(IOUtils.toInputStream(liveNodeJsonString, StandardCharsets.UTF_8.name()));
+
+    int objectDepth = 0;
+    String currentNodeAddr = null;
+    for (JsonToken tok = parser.nextToken(); tok != null; tok = parser.nextToken()) {
+      if (tok == JsonToken.START_OBJECT) {
+        objectDepth++;
+      } else if (tok == JsonToken.END_OBJECT) {
+        objectDepth--;
+      } else if (tok == JsonToken.FIELD_NAME) {
+        if (objectDepth == 1) {
+          // This is where the Datanode identifiers are stored
+          currentNodeAddr = parser.getCurrentName();
+        } else if (objectDepth == 2) {
+          if (parser.getCurrentName().equals("numBlocks")) {
+            JsonToken valueToken = parser.nextToken();
+            if (valueToken != JsonToken.VALUE_NUMBER_INT || currentNodeAddr == null) {
+              throw new IOException(String.format("Malformed LiveNodes JSON; got token = %s; currentNodeAddr = %s: %s",
+                  valueToken, currentNodeAddr, liveNodeJsonString));
+            }
+            int numBlocks = parser.getIntValue();
+            if (numBlocks < blockThreshold) {
+              log.debug(String.format("Queueing Datanode <%s> for block report; numBlocks = %d",
+                  currentNodeAddr, numBlocks));
+              dataNodesToReport.add(currentNodeAddr);
+            } else {
+              log.debug(String.format("Not queueing Datanode <%s> for block report; numBlocks = %d",
+                  currentNodeAddr, numBlocks));
+            }
+          }
+        }
+      }
+    }
+    return dataNodesToReport;
   }
 
   /**
