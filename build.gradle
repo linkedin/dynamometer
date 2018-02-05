@@ -1,0 +1,117 @@
+/**
+ * Copyright 2017 LinkedIn Corporation. All rights reserved. Licensed under the BSD-2 Clause license.
+ * See LICENSE in the project root for license information.
+ */
+buildscript {
+  repositories {
+    mavenCentral()
+    jcenter()
+  }
+  dependencies {
+    // license-gradle plugin: https://github.com/hierynomus/license-gradle-plugin
+    classpath 'nl.javadude.gradle.plugins:license-gradle-plugin:0.11.0'
+  }
+}
+
+def hadoopVersion = '2.7.4'
+ext.deps = [
+  hadoop: [
+    hdfs: "org.apache.hadoop:hadoop-hdfs:${hadoopVersion}",
+    common: "org.apache.hadoop:hadoop-common:${hadoopVersion}",
+    'yarn-api': "org.apache.hadoop:hadoop-yarn-api:${hadoopVersion}",
+    'yarn-client': "org.apache.hadoop:hadoop-yarn-client:${hadoopVersion}",
+    'yarn-common': "org.apache.hadoop:hadoop-yarn-common:${hadoopVersion}",
+    'mapreduce-client-core': "org.apache.hadoop:hadoop-mapreduce-client-core:${hadoopVersion}",
+    minicluster: "org.apache.hadoop:hadoop-minicluster:${hadoopVersion}",
+  ]
+]
+
+allprojects {
+  project.version= '0.1.0-SNAPSHOT'
+  group = 'com.linkedin.dynamometer'
+}
+
+subprojects {
+  apply plugin: 'java'
+  apply plugin: 'eclipse'
+  apply plugin: 'idea'
+  apply plugin: 'license'
+
+  sourceCompatibility = 1.7
+
+  repositories {
+    mavenCentral()
+    mavenLocal()
+  }
+
+  license {
+    header rootProject.file('license_header')
+    // Set the year in the license
+    ext.year = Calendar.getInstance().get(Calendar.YEAR)
+    skipExistingHeaders = true
+    strictCheck = true
+  }
+
+  configurations {
+    hadoopRuntime.extendsFrom(runtime)
+    hadoopRuntime {
+      exclude group: 'org.apache.hadoop'
+    }
+  }
+
+}
+
+apply plugin: 'distribution'
+
+// Generates a closure which is used to set up the contents
+// for a distribution; parametrized by the name of the
+// configuration to include in the lib directory.
+def generateDistContents(configurationName) {
+  return {
+    into('.') {
+      from rootProject.fileTree('.') {
+        include 'README.md'
+        include 'LICENSE'
+        include 'NOTICE'
+        include 'CONTRIBUTING.md'
+      }
+    }
+    into('bin') {
+      def bashFiles = []
+      rootProject.subprojects.each {
+        bashFiles << it.fileTree("src/main/bash") {
+          include "*.sh"
+        }
+      }
+      from bashFiles
+    }
+    into('lib') {
+      def dependencies = files()
+      def jars = []
+      rootProject.subprojects.each {
+        // Use subtraction to eliminate duplicates
+        dependencies = dependencies + (it.configurations[configurationName] - dependencies)
+        jars << it.jar
+      }
+      from dependencies
+      from jars
+    }
+  }
+}
+
+distributions {
+  // main distribution does not include Hadoop JARs; this is the one
+  // typically expected to be used on a system properly set up with
+  // an existing Hadoop installation.
+  main {
+    baseName = rootProject.name
+    contents generateDistContents('hadoopRuntime')
+  }
+  // fat distribution includes all dependencies.
+  fat {
+    baseName = rootProject.name + '-fat'
+    contents generateDistContents('runtime')
+  }
+}
+
+build.dependsOn(distZip)

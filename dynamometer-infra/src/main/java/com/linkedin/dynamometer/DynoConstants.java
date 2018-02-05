@@ -1,0 +1,90 @@
+/**
+ * Copyright 2017 LinkedIn Corporation. All rights reserved. Licensed under the BSD-2 Clause license.
+ * See LICENSE in the project root for license information.
+ */
+package com.linkedin.dynamometer;
+
+import java.util.regex.Pattern;
+import org.apache.hadoop.classification.InterfaceAudience;
+import org.apache.hadoop.classification.InterfaceStability;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
+
+import static org.apache.hadoop.yarn.api.records.LocalResourceType.*;
+
+
+/**
+ * Constants used in both Client and Application Master
+ */
+@InterfaceAudience.Public
+@InterfaceStability.Unstable
+public class DynoConstants {
+
+  // Directory to use for remote storage (a location on the remote FS which
+  // can be accessed by all components). This will be the name of the directory
+  // within the submitter's home directory.
+  public static final String DYNAMOMETER_STORAGE_DIR = ".dynamometer";
+
+  /* The following used for Client -> AM communication */
+
+  // Resource for the zip file of all of the configuration for the DataNodes/NameNode
+  public static final DynoResource CONF_ZIP = new DynoResource("CONF_ZIP", ARCHIVE, "conf");
+  // Resource for the Hadoop binary archive (distribution tar)
+  public static final DynoResource HADOOP_BINARY = new DynoResource("HADOOP_BINARY", ARCHIVE, "hadoopBinary");
+  // Resource for the zip file for the scripts used by the DataNodes/NameNode
+  public static final DynoResource SCRIPTS_ZIP = new DynoResource("SCRIPTS_ZIP", ARCHIVE, "scripts");
+  // Resource for the file system image file used by the NameNode
+  public static final DynoResource FS_IMAGE = new DynoResource("FS_IMAGE", FILE, null);
+  // Resource for the md5 file accompanying the file system image for the NameNode
+  public static final DynoResource FS_IMAGE_MD5 = new DynoResource("FS_IMAGE_MD5", FILE, null);
+  // Resource for the VERSION file accompanying the file system image
+  public static final DynoResource VERSION = new DynoResource("VERSION", FILE, "VERSION");
+  // Resource for the JAR file containing all of the Dynamometer Java code
+  public static final DynoResource DYNO_JAR = new DynoResource("DYNO_JAR", FILE, "dynamometer.jar");
+
+  // Environment variable which will contain the location of the directory
+  // which holds all of the block files for the DataNodes
+  public static final String BLOCK_LIST_PATH_ENV = "BLOCK_ZIP_PATH";
+  // The format of the name of a single block file
+  public static final Pattern BLOCK_LIST_FILE_PATTERN = Pattern.compile("dn[0-9]+-a-[0-9]+-r-[0-9]+");
+  // The file name to use when localizing the block file on a DataNode
+  public static final String BLOCK_LIST_RESOURCE_PATH = "block";
+  public static final PathFilter BLOCK_LIST_FILE_FILTER = new PathFilter() {
+    @Override
+    public boolean accept(Path path) {
+      return DynoConstants.BLOCK_LIST_FILE_PATTERN.matcher(path.getName()).find();
+    }
+  };
+
+  // Environment variable which will contain the full path of the directory
+  // which should be used for remote (shared) storage
+  public static final String REMOTE_STORAGE_PATH_ENV = "REMOTE_STORAGE_PATH";
+  // Environment variable which will contain the RPC address of the NameNode
+  // which the DataNodes should contact, if the NameNode is not launched
+  // internally by this application
+  public static final String REMOTE_NN_RPC_ADDR_ENV = "REMOTE_NN_RPC_ADDR";
+
+  /* The following used for AM -> DN, NN communication */
+
+  // The name of the file which will store information about the NameNode
+  // (within the remote storage directory)
+  public static final String NN_INFO_FILE_NAME = "nn_info.prop";
+
+  // Environment variable which will contain additional arguments for the NameNode
+  public static final String NN_ADDITIONAL_ARGS_ENV = "NN_ADDITIONAL_ARGS";
+  // Environment variable which will contain additional arguments for the DataNode
+  public static final String DN_ADDITIONAL_ARGS_ENV = "DN_ADDITIONAL_ARGS";
+
+  public static final String NN_FILE_METRIC_PERIOD_ENV = "NN_FILE_METRIC_PERIOD";
+
+  /* These are used as the names of properties and as the environment variables */
+  // The port to use on the NameNode host when contacting for client RPCs
+  public static final String NN_RPC_PORT = "NN_RPC_PORT";
+  // The hostname of the machine running the NameNode
+  public static final String NN_HOSTNAME = "NN_HOSTNAME";
+  // The port to use on the NameNode host when contacting for service RPCs
+  public static final String NN_SERVICERPC_PORT = "NN_SERVICERPC_PORT";
+  // The port to use on the NameNode host when contacting for HTTP access
+  public static final String NN_HTTP_PORT = "NN_HTTP_PORT";
+
+}

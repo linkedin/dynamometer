@@ -1,0 +1,14 @@
+/**
+ * Copyright 2017 LinkedIn Corporation. All rights reserved. Licensed under the BSD-2 Clause license.
+ * See LICENSE in the project root for license information.
+ */
+rootProject.name = 'dynamometer'
+
+def modules = ['dynamometer-infra', 'dynamometer-blockgen', 'dynamometer-workload']
+
+modules.each { module ->
+  if (!file(module).directory) {
+    throw new GradleException("Module '$module' specified in the settings.gradle file must be a valid directory in the root project.")
+  }
+  include "${module}"
+}

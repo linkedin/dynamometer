@@ -1,0 +1,18 @@
+/**
+ * Copyright 2017 LinkedIn Corporation. All rights reserved. Licensed under the BSD-2 Clause license.
+ * See LICENSE in the project root for license information.
+ */
+dependencies {
+  compile 'commons-cli:commons-cli:1.2'
+  compile deps.hadoop.hdfs
+  compile deps.hadoop.common
+  compile deps.hadoop.'yarn-api'
+  compile deps.hadoop.'yarn-client'
+  compile deps.hadoop.'yarn-common'
+  compile project(':dynamometer-workload')
+
+  testCompile project(path: ':dynamometer-workload', configuration: 'testArtifacts')
+  testCompile deps.hadoop.minicluster
+  testCompile 'junit:junit:4.11'
+  testCompile 'org.mockito:mockito-all:1.10.19'
+}

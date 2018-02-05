@@ -1,0 +1,3 @@
+10create/tmp/test1 0.0.0.0
+20mkdirs/tmp/testDir 0.0.0.0
+30rename/tmp/testDir/tmp/testDirRenamed0.0.0.0

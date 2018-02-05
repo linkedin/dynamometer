@@ -1,0 +1,24 @@
+/**
+ * Copyright 2017 LinkedIn Corporation. All rights reserved. Licensed under the BSD-2 Clause license.
+ * See LICENSE in the project root for license information.
+ */
+dependencies {
+  compile deps.hadoop.common
+  compile deps.hadoop.'mapreduce-client-core'
+
+  testCompile deps.hadoop.minicluster
+  testCompile 'junit:junit:4.11'
+}
+
+task testJar(type: Jar) {
+  from sourceSets.test.output
+  classifier 'tests'
+}
+
+configurations {
+  testArtifacts
+}
+
+artifacts {
+  testArtifacts testJar
+}

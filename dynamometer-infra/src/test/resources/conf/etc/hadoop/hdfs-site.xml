@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!--
+
+    Copyright 2017 LinkedIn Corporation. All rights reserved. Licensed under the BSD-2 Clause license.
+    See LICENSE in the project root for license information.
+
+-->
+<configuration>
+  <property>
+    <name>dfs.datanode.data.dir</name>
+    <value>file:///dynamometer/dfs/data1,file:///dynamometer/dfs/data2</value>
+  </property>
+</configuration>
