@@ -22,7 +22,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.DFSClient;
-import org.apache.hadoop.hdfs.DynoDFSUtil;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.hdfs.protocol.HdfsFileStatus;
 import org.apache.hadoop.mapreduce.Counter;
@@ -70,7 +69,7 @@ public class AuditReplayThread extends Thread {
     createBlocks = mapperConf.getBoolean(AuditReplayMapper.CREATE_BLOCKS_KEY,
         AuditReplayMapper.CREATE_BLOCKS_DEFAULT);
     fs = FileSystem.get(URI.create(namenodeURI), mapperConf);
-    dfsClient = DynoDFSUtil.getDFSClient((DistributedFileSystem) fs);
+    dfsClient = ((DistributedFileSystem) fs).getClient();
     LOG.info("Start timestamp: " + startTimestampMs);
     for (REPLAYCOUNTERS rc : REPLAYCOUNTERS.values()) {
       replayCountersMap.put(rc, new GenericCounter());
