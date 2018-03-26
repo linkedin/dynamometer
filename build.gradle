@@ -13,7 +13,7 @@ buildscript {
   }
 }
 
-def hadoopVersion = '2.7.4'
+def hadoopVersion = '2.7.5'
 ext.deps = [
   hadoop: [
     hdfs: "org.apache.hadoop:hadoop-hdfs:${hadoopVersion}",
