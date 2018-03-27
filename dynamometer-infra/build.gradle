@@ -17,3 +17,11 @@ dependencies {
   testCompile 'junit:junit:4.11'
   testCompile 'org.mockito:mockito-all:1.10.19'
 }
+
+test {
+  [ "dyno.apache-mirror", "dyno.hadoop.bin.path", "dyno.hadoop.bin.version" ].each {
+    if (System.getProperty(it) != null) {
+      systemProperty it, System.getProperty(it)
+    }
+  }
+}
