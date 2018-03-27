@@ -8,8 +8,10 @@ import com.google.common.base.Preconditions;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
+import org.apache.hadoop.conf.Configuration;
 
 
 /**
@@ -31,10 +33,16 @@ class AMOptions {
   public static final String NAMENODE_METRICS_PERIOD_ARG = "namenode_metrics_period";
   public static final String NAMENODE_METRICS_PERIOD_DEFAULT = "60";
   public static final String SHELL_ENV_ARG = "shell_env";
+  public static final String DATANODES_PER_CLUSTER_ARG = "datanodes_per_cluster";
+  public static final String DATANODES_PER_CLUSTER_DEFAULT = "1";
+  public static final String DATANODE_LAUNCH_DELAY_ARG = "datanode_launch_delay";
+  public static final String DATANODE_LAUNCH_DELAY_DEFAULT = "0s";
 
   private final int datanodeMemoryMB;
   private final int datanodeVirtualCores;
   private final String datanodeArgs;
+  private final int datanodesPerCluster;
+  private final String datanodeLaunchDelay;
   private final int namenodeMemoryMB;
   private final int namenodeVirtualCores;
   private final String namenodeArgs;
@@ -45,11 +53,13 @@ class AMOptions {
   private final Map<String, String> shellEnv;
 
   AMOptions(int datanodeMemoryMB, int datanodeVirtualCores, String datanodeArgs,
-      int namenodeMemoryMB, int namenodeVirtualCores, String namenodeArgs,
-      int namenodeMetricsPeriod, Map<String, String> shellEnv) {
+      int datanodesPerCluster, String datanodeLaunchDelay, int namenodeMemoryMB, int namenodeVirtualCores,
+      String namenodeArgs, int namenodeMetricsPeriod, Map<String, String> shellEnv) {
     this.datanodeMemoryMB = datanodeMemoryMB;
     this.datanodeVirtualCores = datanodeVirtualCores;
     this.datanodeArgs = datanodeArgs;
+    this.datanodesPerCluster = datanodesPerCluster;
+    this.datanodeLaunchDelay = datanodeLaunchDelay;
     this.namenodeMemoryMB = namenodeMemoryMB;
     this.namenodeVirtualCores = namenodeVirtualCores;
     this.namenodeArgs = namenodeArgs;
@@ -74,6 +84,7 @@ class AMOptions {
         "namenodeMemoryMB (%s) must be between 0 and %s", namenodeMemoryMB, maxMemory);
     Preconditions.checkArgument(namenodeVirtualCores > 0 && namenodeVirtualCores <= maxVcores,
         "namenodeVirtualCores (%s) must be between 0 and %s", namenodeVirtualCores, maxVcores);
+    Preconditions.checkArgument(datanodesPerCluster > 0, "datanodesPerCluster (%s) must be > 0", datanodesPerCluster);
   }
 
   /**
@@ -89,6 +100,8 @@ class AMOptions {
     if (!datanodeArgs.isEmpty()) {
       vargs.add("--" + DATANODE_ARGS_ARG + " \\\"" + datanodeArgs + "\\\"");
     }
+    vargs.add("--" + DATANODES_PER_CLUSTER_ARG + " " + String.valueOf(datanodesPerCluster));
+    vargs.add("--" + DATANODE_LAUNCH_DELAY_ARG + " " + datanodeLaunchDelay);
     vargs.add("--" + NAMENODE_MEMORY_MB_ARG + " " + String.valueOf(namenodeMemoryMB));
     vargs.add("--" + NAMENODE_VCORES_ARG + " " + String.valueOf(namenodeVirtualCores));
     if (!namenodeArgs.isEmpty()) {
@@ -106,6 +119,18 @@ class AMOptions {
 
   int getDataNodeVirtualCores() {
     return datanodeVirtualCores;
+  }
+
+  int getDataNodesPerCluster() {
+    return datanodesPerCluster;
+  }
+
+  long getDataNodeLaunchDelaySec() {
+    // Leverage the human-readable time parsing capabilities of Configuration
+    String tmpConfKey = "___temp_config_property___";
+    Configuration tmpConf = new Configuration();
+    tmpConf.set(tmpConfKey, datanodeLaunchDelay);
+    return tmpConf.getTimeDuration(tmpConfKey, 0, TimeUnit.SECONDS);
   }
 
   int getNameNodeMemoryMB() {
@@ -144,6 +169,12 @@ class AMOptions {
     opts.addOption(DATANODE_VCORES_ARG, true,
         "Amount of virtual cores to be requested to run the DNs (default " + DATANODE_VCORES_DEFAULT + ")");
     opts.addOption(DATANODE_ARGS_ARG, true, "Additional arguments to add when starting the DataNodes.");
+    opts.addOption(DATANODES_PER_CLUSTER_ARG, true, "How many simulated DataNodes to run within each YARN container " +
+        "(default " + DATANODES_PER_CLUSTER_DEFAULT + ")");
+    opts.addOption(DATANODE_LAUNCH_DELAY_ARG, true, "The period over which to launch the DataNodes; this will " +
+        "be used as the maximum delay and each DataNode container will be launched with some random delay less than " +
+        "this value. Accepts human-readable time durations (e.g. 10s, 1m) (default " +
+        DATANODE_LAUNCH_DELAY_DEFAULT + ")");
 
     opts.addOption("help", false, "Print usage");
   }
@@ -176,6 +207,8 @@ class AMOptions {
         Integer.parseInt(cliParser.getOptionValue(DATANODE_MEMORY_MB_ARG, DATANODE_MEMORY_MB_DEFAULT)),
         Integer.parseInt(cliParser.getOptionValue(DATANODE_VCORES_ARG, DATANODE_VCORES_DEFAULT)),
         cliParser.getOptionValue(DATANODE_ARGS_ARG, ""),
+        Integer.parseInt(cliParser.getOptionValue(DATANODES_PER_CLUSTER_ARG, DATANODES_PER_CLUSTER_DEFAULT)),
+        cliParser.getOptionValue(DATANODE_LAUNCH_DELAY_ARG, DATANODE_LAUNCH_DELAY_DEFAULT),
         Integer.parseInt(cliParser.getOptionValue(NAMENODE_MEMORY_MB_ARG, NAMENODE_MEMORY_MB_DEFAULT)),
         Integer.parseInt(cliParser.getOptionValue(NAMENODE_VCORES_ARG, NAMENODE_VCORES_DEFAULT)),
         cliParser.getOptionValue(NAMENODE_ARGS_ARG, ""),

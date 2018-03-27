@@ -31,8 +31,8 @@ public class DynoConstants {
   public static final DynoResource CONF_ZIP = new DynoResource("CONF_ZIP", ARCHIVE, "conf");
   // Resource for the Hadoop binary archive (distribution tar)
   public static final DynoResource HADOOP_BINARY = new DynoResource("HADOOP_BINARY", ARCHIVE, "hadoopBinary");
-  // Resource for the zip file for the scripts used by the DataNodes/NameNode
-  public static final DynoResource SCRIPTS_ZIP = new DynoResource("SCRIPTS_ZIP", ARCHIVE, "scripts");
+  // Resource for the script used to start the DataNodes/NameNode
+  public static final DynoResource START_SCRIPT = new DynoResource("START_SCRIPT", FILE, "start-component.sh");
   // Resource for the file system image file used by the NameNode
   public static final DynoResource FS_IMAGE = new DynoResource("FS_IMAGE", FILE, null);
   // Resource for the md5 file accompanying the file system image for the NameNode
@@ -47,8 +47,8 @@ public class DynoConstants {
   public static final String BLOCK_LIST_PATH_ENV = "BLOCK_ZIP_PATH";
   // The format of the name of a single block file
   public static final Pattern BLOCK_LIST_FILE_PATTERN = Pattern.compile("dn[0-9]+-a-[0-9]+-r-[0-9]+");
-  // The file name to use when localizing the block file on a DataNode
-  public static final String BLOCK_LIST_RESOURCE_PATH = "block";
+  // The file name to use when localizing the block file on a DataNode; will be suffixed with an integer
+  public static final String BLOCK_LIST_RESOURCE_PATH_PREFIX = "blocks/block";
   public static final PathFilter BLOCK_LIST_FILE_FILTER = new PathFilter() {
     @Override
     public boolean accept(Path path) {

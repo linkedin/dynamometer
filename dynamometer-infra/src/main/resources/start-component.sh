@@ -8,14 +8,17 @@
 # USAGE:
 # ./start-component.sh namenode hdfs_storage
 # OR
-# ./start-component.sh datanode nn_servicerpc_address
+# ./start-component.sh datanode nn_servicerpc_address sleep_time_sec
 # First parameter should be component being launched, either `datanode` or `namenode`
 # If component is namenode, hdfs_storage is expected to point to a location to
 #   write out shared files such as the file containing the information about
 #   which ports the NN started on (at nn_info.prop) and the namenode's metrics
 #   (at namenode_metrics)
-# If component is datanode, nn_servicerpc_address is expected to point to
-#   servicerpc address of the namenode
+# If component is datanode, nn_servicerpc_address is expected to point to the
+#   servicerpc address of the namenode. sleep_time_sec is the amount of time that
+#   should be allowed to elapse before launching anything. The
+#   `com.linkedin.dynamometer.SimulatedDataNodes` class will be used to start multiple
+#   DataNodes within the same JVM, and they will store their block files in memory.
 
 component="$1"
 if [[ "$component" != "datanode" && "$component" != "namenode" ]]; then
@@ -29,11 +32,12 @@ if [ "$component" = "namenode" ]; then
   fi
   hdfsStoragePath="$2"
 else
-  if [ $# -lt 2 ]; then
+  if [ $# -lt 3 ]; then
     echo "Not enough arguments for DataNode"
     exit 1
   fi
   nnServiceRpcAddress="$2"
+  launchDelaySec="$3"
 fi
 containerID=${CONTAINER_ID##*_}
 
@@ -142,33 +146,49 @@ if [ "$component" = "datanode" ]; then
   done
   dataDirs=${dataDirs:1}
 
-  ./scripts/create-dn-dir.sh "$dataDirs"
-  if [ $? -ne 0 ]; then
-    echo "Unable to create datanode directories"
-    exit 1
-  fi
+  echo "Going to sleep for $launchDelaySec sec..."
+  for i in `seq 1 ${launchDelaySec}`; do
+    sleep 1
+    if ! kill -0 $PPID 2>/dev/null; then
+      echo "Parent process ($PPID) exited while waiting; now exiting"
+      exit 0
+     fi
+  done
+  
+  versionFile="`pwd`/VERSION"
+  bpId=`cat "${versionFile}" | grep blockpoolID | awk -F\= '{print $2}'`
+  listingFiles=()
+  blockDir="`pwd`/blocks"
+  for listingFile in ${blockDir}/*; do
+    listingFiles+=("file://${listingFile}")
+  done 
 
-  ipcPort=`find_available_port "$baseIpcPort"`
-  httpPort=`find_available_port "$baseHttpPort"`
-  serverPort=`find_available_port "$baseServerPort"`
+  localHostname=`hostname`
 
-  read -r -d '' datanodeConfigs <<EOF
-  -D dfs.datanode.hostname=$(hostname)-${containerID}
-  -D dfs.datanode.data.dir=${dataDirs}
-  -D dfs.datanode.ipc.address=0.0.0.0:${ipcPort}
-  -D dfs.datanode.http.address=0.0.0.0:${httpPort}
-  -D dfs.datanode.address=0.0.0.0:${serverPort}
-  -D dfs.namenode.servicerpc-address=${nnServiceRpcAddress}
-  -D dfs.datanode.directoryscan.interval=-1
-  -D fs.du.interval=43200000
-  -D fs.getspaceused.jitterMillis=21600000
-  ${configOverrides}
+  read -r -d '' datanodeClusterConfigs <<EOF
+    -D fs.defaultFS=${nnServiceRpcAddress}
+    -D dfs.datanode.hostname=${localHostname}
+    -D dfs.datanode.data.dir=${dataDirs}
+    -D dfs.datanode.ipc.address=${localHostname}:0
+    -D dfs.datanode.http.address=${localHostname}:0
+    -D dfs.datanode.address=${localHostname}:0
+    -D dfs.datanode.directoryscan.interval=-1
+    -D fs.du.interval=43200000
+    -D fs.getspaceused.jitterMillis=21600000
+    ${configOverrides}
+    ${bpId}
+    ${listingFiles[@]}
 EOF
 
   echo "Executing the following:"
-  echo "${HADOOP_HOME}/sbin/hadoop-daemon.sh start datanode $datanodeConfigs $DN_ADDITIONAL_ARGS"
-  if ! ${HADOOP_HOME}/sbin/hadoop-daemon.sh start datanode $datanodeConfigs $DN_ADDITIONAL_ARGS; then
-    echo "Unable to launch DataNode; exiting."
+  printf "${HADOOP_HOME}/bin/hadoop jar dynamometer.jar com.linkedin.dynamometer.SimulatedDataNodes "
+  printf "$DN_ADDITIONAL_ARGS $datanodeClusterConfigs\n"
+  ${HADOOP_HOME}/bin/hadoop jar dynamometer.jar com.linkedin.dynamometer.SimulatedDataNodes \
+    $DN_ADDITIONAL_ARGS $datanodeClusterConfigs &
+  launchSuccess="$?"
+  componentPID="$!"
+  if [[ ${launchSuccess} -ne 0 ]]; then
+    echo "Unable to launch DataNode cluster; exiting."
     exit 1
   fi
 
@@ -227,6 +247,9 @@ EOF
   ln -snf "`pwd`/VERSION" "$nameDir/current/VERSION"
   chmod 700 "$nameDir/current/"*
 
+  # To be able to use the custom block placement policy
+  export HADOOP_CLASSPATH="`pwd`/dynamometer.jar:$HADOOP_CLASSPATH"
+
  read -r -d '' namenodeConfigs <<EOF
   -D fs.defaultFS=hdfs://${nnHostname}:${nnRpcPort}
   -D dfs.namenode.rpc-address=${nnHostname}:${nnRpcPort}
@@ -245,6 +268,7 @@ EOF
   -D dfs.namenode.safemode.threshold-pct=0.0f
   -D dfs.permissions.enabled=false
   -D dfs.cluster.administrators="*"
+  -D dfs.block.replicator.classname=com.linkedin.dynamometer.BlockPlacementPolicyAlwaysSatisfied
   ${configOverrides}
 EOF
 
@@ -254,6 +278,9 @@ EOF
     echo "Unable to launch NameNode; exiting."
     exit 1
   fi
+  componentPIDFile="$pidDir/hadoop-`whoami`-$component.pid"
+  while [ ! -f "$componentPIDFile" ]; do sleep 1; done
+  componentPID=`cat "$componentPIDFile"`
 
   if [ "$NN_FILE_METRIC_PERIOD" -gt 0 ]; then
     nnMetricOutputFileRemote="$hdfsStoragePath/namenode_metrics"
@@ -270,10 +297,6 @@ EOF
     fi
   fi
 fi
-
-componentPIDFile="$pidDir/hadoop-`whoami`-$component.pid"
-while [ ! -f "$componentPIDFile" ]; do sleep 1; done
-componentPID=`cat "$componentPIDFile"`
 
 echo "Started $component at pid $componentPID"
 

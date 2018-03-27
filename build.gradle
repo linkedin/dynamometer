@@ -23,6 +23,7 @@ ext.deps = [
     'yarn-common': "org.apache.hadoop:hadoop-yarn-common:${hadoopVersion}",
     'mapreduce-client-core': "org.apache.hadoop:hadoop-mapreduce-client-core:${hadoopVersion}",
     minicluster: "org.apache.hadoop:hadoop-minicluster:${hadoopVersion}",
+    'hdfs-test': "org.apache.hadoop:hadoop-hdfs:${hadoopVersion}:tests",
   ]
 ]
 

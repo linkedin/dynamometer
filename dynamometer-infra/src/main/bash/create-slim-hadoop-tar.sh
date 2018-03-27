@@ -27,7 +27,7 @@ hadoopShare="$baseDir/share/hadoop"
 # Remove unnecessary files
 rm -rf ${baseDir}/share/doc ${hadoopShare}/mapreduce ${hadoopShare}/yarn \
        ${hadoopShare}/kms ${hadoopShare}/tools ${hadoopShare}/httpfs \
-       ${hadoopShare}/*/sources ${hadoopShare}/*/jdiff ${hadoopShare}/*/*-tests.jar
+       ${hadoopShare}/*/sources ${hadoopShare}/*/jdiff
 
 tar czf "$hadoopTarTmp.tar.gz" -C "$hadoopTarTmp" .
 rm -rf "$hadoopTarTmp"
