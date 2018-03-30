@@ -131,6 +131,8 @@ public class Client extends Configured implements Tool {
   public static final String WORKLOAD_INPUT_PATH_ARG = "workload_input_path";
   public static final String WORKLOAD_THREADS_PER_MAPPER_ARG = "workload_threads_per_mapper";
   public static final String WORKLOAD_START_DELAY_ARG = "workload_start_delay";
+  public static final String WORKLOAD_RATE_FACTOR_ARG = "workload_rate_factor";
+  public static final String WORKLOAD_RATE_FACTOR_DEFAULT = "1.0";
 
   private static final String START_SCRIPT_LOCATION =
       Client.class.getClassLoader().getResource(DynoConstants.START_SCRIPT.getResourcePath()).toString();
@@ -185,6 +187,7 @@ public class Client extends Configured implements Tool {
   private int workloadThreadsPerMapper;
   // The startup delay for the workload job.
   private long workloadStartDelayMs;
+  private double workloadRateFactor = 0.0;
 
   // Start time for client
   private final long clientStartTime = System.currentTimeMillis();
@@ -276,6 +279,9 @@ public class Client extends Configured implements Tool {
         "any of them start replaying. Workloads with more mappers may need a longer delay to get all of " +
         "the containers allocated. Human-readable units accepted (e.g. 30s, 10m). " +
         "(default " + WorkloadDriver.START_TIME_OFFSET_DEFAULT + ")");
+    opts.addOption(WORKLOAD_RATE_FACTOR_ARG, true,
+        "Rate factor (multiplicative speed factor) to apply to workload replay (Default " +
+            WORKLOAD_RATE_FACTOR_DEFAULT + ")");
   }
 
   /**
@@ -375,6 +381,8 @@ public class Client extends Configured implements Tool {
       workloadInputPath = cliParser.getOptionValue(WORKLOAD_INPUT_PATH_ARG);
       workloadThreadsPerMapper = Integer.parseInt(cliParser.getOptionValue(WORKLOAD_THREADS_PER_MAPPER_ARG,
           String.valueOf(AuditReplayMapper.NUM_THREADS_DEFAULT)));
+      workloadRateFactor = Double.parseDouble(cliParser.getOptionValue(WORKLOAD_RATE_FACTOR_ARG,
+          WORKLOAD_RATE_FACTOR_DEFAULT));
       String delayString = cliParser.getOptionValue(WORKLOAD_START_DELAY_ARG, WorkloadDriver.START_TIME_OFFSET_DEFAULT);
       // Store a temporary config to leverage Configuration's time duration parsing.
       getConf().set("___temp___", delayString);
@@ -817,6 +825,7 @@ public class Client extends Configured implements Tool {
       Configuration workloadConf = new Configuration(getConf());
       workloadConf.set(AuditReplayMapper.INPUT_PATH_KEY, workloadInputPath);
       workloadConf.setInt(AuditReplayMapper.NUM_THREADS_KEY, workloadThreadsPerMapper);
+      workloadConf.setDouble(AuditReplayMapper.RATE_FACTOR_KEY, workloadRateFactor);
       workloadJob = WorkloadDriver.getJobForSubmission(workloadConf, nameNodeURI.toString(),
           workloadStartTime, AuditReplayMapper.class);
       workloadJob.submit();

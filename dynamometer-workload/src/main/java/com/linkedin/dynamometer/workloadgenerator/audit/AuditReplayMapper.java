@@ -42,6 +42,12 @@ import static com.linkedin.dynamometer.workloadgenerator.audit.AuditReplayMapper
  * "invalid" (threw an exception), how many were "late" (replayed later than they should have been),
  * and the latency (from client perspective) of each command. If there are a large number of "late"
  * commands, you likely need to increase the number of threads used and/or the number of mappers.
+ *
+ * By default, commands will be replayed at the same rate as they were originally performed. However
+ * a rate factor can be specified via the {@value RATE_FACTOR_KEY} configuration; all of the (relative)
+ * timestamps will be divided by this rate factor, effectively changing the rate at which they are
+ * replayed. For example, a rate factor of 2 would make the replay occur twice as fast, and a rate
+ * factor of 0.5 would make it occur half as fast.
  */
 public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text> {
 
@@ -50,6 +56,8 @@ public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text> {
   public static final int NUM_THREADS_DEFAULT = 1;
   public static final String CREATE_BLOCKS_KEY = "auditreplay.create-blocks";
   public static final boolean CREATE_BLOCKS_DEFAULT = true;
+  public static final String RATE_FACTOR_KEY = "auditreplay.rate-factor";
+  public static final double RATE_FACTOR_DEFAULT = 1.0;
   public static final String COMMAND_PARSER_KEY = "auditreplay.command-parser.class";
   public static final Class<AuditLogDirectParser> COMMAND_PARSER_DEFAULT = AuditLogDirectParser.class;
 
@@ -119,6 +127,7 @@ public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text> {
 
   private long startTimestampMs;
   private int numThreads;
+  private double rateFactor;
   private long highestTimestamp;
   private List<AuditReplayThread> threads;
   private Function<Long, Long> relativeToAbsoluteTimestamp;
@@ -140,7 +149,10 @@ public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text> {
         INPUT_PATH_KEY + " (required): Path to directory containing input files.",
         NUM_THREADS_KEY + " (default " + NUM_THREADS_DEFAULT + "): Number of threads to use per mapper for replay.",
         CREATE_BLOCKS_KEY + " (default " + CREATE_BLOCKS_DEFAULT + "): Whether or not to create 1-byte blocks when " +
-            "performing `create` commands."
+            "performing `create` commands.",
+        RATE_FACTOR_KEY + " (default " + RATE_FACTOR_DEFAULT + "): Multiplicative speed at which to replay the audit " +
+            " log; e.g. a value of 2.0 would make the replay occur at twice the original speed. This can be useful " +
+            "to induce heavier loads."
     );
   }
 
@@ -155,6 +167,7 @@ public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text> {
     // WorkloadDriver ensures that the starttimestamp is set
     startTimestampMs = conf.getLong(WorkloadDriver.START_TIMESTAMP_MS, -1);
     numThreads = conf.getInt(NUM_THREADS_KEY, NUM_THREADS_DEFAULT);
+    rateFactor = conf.getDouble(RATE_FACTOR_KEY, RATE_FACTOR_DEFAULT);
     try {
       commandParser = conf.getClass(COMMAND_PARSER_KEY, COMMAND_PARSER_DEFAULT, AuditCommandParser.class)
           .getConstructor().newInstance();
@@ -165,7 +178,7 @@ public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text> {
     relativeToAbsoluteTimestamp = new Function<Long, Long>() {
       @Override
       public Long apply(Long input) {
-        return startTimestampMs + input;
+        return startTimestampMs + Math.round(input / rateFactor);
       }
     };
 
