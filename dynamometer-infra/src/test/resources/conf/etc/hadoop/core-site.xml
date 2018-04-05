@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!--
+
+    Copyright 2017 LinkedIn Corporation. All rights reserved. Licensed under the BSD-2 Clause license.
+    See LICENSE in the project root for license information.
+
+-->
+<configuration>
+  <property>
+  <name>hadoop.security.impersonation.provider.class</name>
+  <value>com.linkedin.dynamometer.AllowAllImpersonationProvider</value>
+  </property>
+</configuration>

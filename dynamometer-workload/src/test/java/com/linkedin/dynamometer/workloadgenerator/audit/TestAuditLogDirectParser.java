@@ -41,7 +41,7 @@ public class TestAuditLogDirectParser {
   public void testSimpleInput() throws Exception {
     Text in = getAuditString("1970-01-01 00:00:11,000", "fakeUser", "listStatus", "sourcePath", "null");
     AuditReplayCommand expected =
-        new AuditReplayCommand(1000, "listStatus", "sourcePath", "null", "0.0.0.0");
+        new AuditReplayCommand(1000, "fakeUser", "listStatus", "sourcePath", "null", "0.0.0.0");
     assertEquals(expected, parser.parse(in, IDENTITY_FN));
   }
 
@@ -50,7 +50,7 @@ public class TestAuditLogDirectParser {
     Text in = getAuditString("1970-01-01 00:00:11,000", "fakeUser", "rename (options=[TO_TRASH])",
         "sourcePath", "destPath");
     AuditReplayCommand expected =
-        new AuditReplayCommand(1000, "rename (options=[TO_TRASH])", "sourcePath", "destPath", "0.0.0.0");
+        new AuditReplayCommand(1000, "fakeUser", "rename (options=[TO_TRASH])", "sourcePath", "destPath", "0.0.0.0");
     assertEquals(expected, parser.parse(in, IDENTITY_FN));
   }
 
@@ -59,7 +59,7 @@ public class TestAuditLogDirectParser {
     Text in = getAuditString("1970-01-01 00:00:11,000", "fakeUser (auth:TOKEN)", "create",
         "sourcePath", "null");
     AuditReplayCommand expected =
-        new AuditReplayCommand(1000, "create", "sourcePath", "null", "0.0.0.0");
+        new AuditReplayCommand(1000, "fakeUser", "create", "sourcePath", "null", "0.0.0.0");
     assertEquals(expected, parser.parse(in, IDENTITY_FN));
   }
 
@@ -68,7 +68,7 @@ public class TestAuditLogDirectParser {
     Text in = getAuditString("1970-01-01 00:00:11,000", "proxyUser (auth:TOKEN) via fakeUser", "create",
         "sourcePath", "null");
     AuditReplayCommand expected =
-        new AuditReplayCommand(1000, "create", "sourcePath", "null", "0.0.0.0");
+        new AuditReplayCommand(1000, "proxyUser", "create", "sourcePath", "null", "0.0.0.0");
     assertEquals(expected, parser.parse(in, IDENTITY_FN));
   }
 

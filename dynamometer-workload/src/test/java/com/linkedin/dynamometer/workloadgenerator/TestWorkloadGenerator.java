@@ -8,7 +8,10 @@ import com.linkedin.dynamometer.workloadgenerator.audit.AuditCommandParser;
 import com.linkedin.dynamometer.workloadgenerator.audit.AuditLogDirectParser;
 import com.linkedin.dynamometer.workloadgenerator.audit.AuditLogHiveTableParser;
 import com.linkedin.dynamometer.workloadgenerator.audit.AuditReplayMapper;
+import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
@@ -16,11 +19,15 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.mapreduce.Counters;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.security.authorize.AuthorizationException;
+import org.apache.hadoop.security.authorize.ImpersonationProvider;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 
@@ -33,6 +40,8 @@ public class TestWorkloadGenerator {
   @Before
   public void setup() throws Exception {
     conf = new Configuration();
+    conf.setClass(CommonConfigurationKeysPublic.HADOOP_SECURITY_IMPERSONATION_PROVIDER_CLASS,
+        AllowUserImpersonationProvider.class, ImpersonationProvider.class);
     miniCluster = new MiniDFSCluster.Builder(conf).build();
     miniCluster.waitClusterUp();
     dfs = miniCluster.getFileSystem();
@@ -65,6 +74,25 @@ public class TestWorkloadGenerator {
     testAuditWorkload();
   }
 
+  /**
+   * {@link ImpersonationProvider} that confirms the user doing the impersonating is the same as the user
+   * running the MiniCluster.
+   */
+  private static class AllowUserImpersonationProvider extends Configured implements ImpersonationProvider {
+    public void init(String configurationPrefix) {
+      // Do nothing
+    }
+    public void authorize(UserGroupInformation user, String remoteAddress) throws AuthorizationException {
+      try {
+        if (!user.getRealUser().getShortUserName().equals(UserGroupInformation.getCurrentUser().getShortUserName())) {
+          throw new AuthorizationException();
+        }
+      } catch (IOException ioe) {
+        throw new AuthorizationException(ioe);
+      }
+    }
+  }
+
   private void testAuditWorkload() throws Exception {
     long workloadStartTime = System.currentTimeMillis() + 10000;
     Job workloadJob = WorkloadDriver.getJobForSubmission(conf, dfs.getUri().toString(),
@@ -72,9 +100,10 @@ public class TestWorkloadGenerator {
     boolean success = workloadJob.waitForCompletion(true);
     assertTrue("workload job should succeed", success);
     Counters counters = workloadJob.getCounters();
-    assertEquals(3, counters.findCounter(AuditReplayMapper.REPLAYCOUNTERS.TOTALCOMMANDS).getValue());
-    assertEquals(0, counters.findCounter(AuditReplayMapper.REPLAYCOUNTERS.TOTALINVALIDCOMMANDS).getValue());
+    assertEquals(4, counters.findCounter(AuditReplayMapper.REPLAYCOUNTERS.TOTALCOMMANDS).getValue());
+    assertEquals(1, counters.findCounter(AuditReplayMapper.REPLAYCOUNTERS.TOTALINVALIDCOMMANDS).getValue());
     assertTrue(dfs.getFileStatus(new Path("/tmp/test1")).isFile());
     assertTrue(dfs.getFileStatus(new Path("/tmp/testDirRenamed")).isDirectory());
+    assertFalse(dfs.exists(new Path("/denied")));
   }
 }

@@ -32,6 +32,7 @@ public class AuditLogDirectParser implements AuditCommandParser {
   private static final Pattern MESSAGE_ONLY_PATTERN = Pattern.compile("^([0-9-]+ [0-9:,]+) [^:]+: (.+)$");
   private static final Splitter.MapSplitter AUDIT_SPLITTER =
       Splitter.on("\t").trimResults().omitEmptyStrings().withKeyValueSeparator("=");
+  private static final Splitter SPACE_SPLITTER = Splitter.on(" ").trimResults().omitEmptyStrings();
   private static final DateFormat AUDIT_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss,SSS");
   static {
     AUDIT_DATE_FORMAT.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -63,6 +64,8 @@ public class AuditLogDirectParser implements AuditCommandParser {
     String auditMessageSanitized = m.group(2).replace("(options=", "(options:");
     Map<String, String> parameterMap = AUDIT_SPLITTER.split(auditMessageSanitized);
     return new AuditReplayCommand(relativeToAbsolute.apply(relativeTimestamp),
+        // Split the UGI on space to remove the auth and proxy portions of it
+        SPACE_SPLITTER.split(parameterMap.get("ugi")).iterator().next(),
         parameterMap.get("cmd").replace("(options:", "(options="),
         parameterMap.get("src"), parameterMap.get("dst"), parameterMap.get("ip"));
   }

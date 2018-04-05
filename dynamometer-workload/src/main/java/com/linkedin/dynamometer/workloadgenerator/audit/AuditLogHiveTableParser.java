@@ -16,14 +16,14 @@ import org.apache.hadoop.io.Text;
  * which fields should be separated by the start-of-heading (U+0001) character.
  * The fields available should be, in order:
  * <pre>
- *   relativeTimestampMs,command,src,dest,sourceIP
+ *   relativeTimestampMs,ugi,command,src,dest,sourceIP
  * </pre>
  * Where relativeTimestampMs represents the time elapsed between the start of
  * the audit log and the occurrence of the audit event. Assuming your audit
  * logs are available in Hive, this can be generated with a query looking like:
  * <pre>
  *   INSERT OVERWRITE DIRECTORY '${outputPath}'
- *   SELECT (timestamp - ${startTimestamp} AS relativeTimestamp, cmd, src, dst, ip
+ *   SELECT (timestamp - ${startTimestamp} AS relativeTimestamp, ugi, cmd, src, dst, ip
  *   FROM '${auditLogTableLocation}'
  *   WHERE timestamp >= ${startTimestamp} AND timestamp < ${endTimestamp}
  *   DISTRIBUTE BY src
@@ -45,7 +45,7 @@ public class AuditLogHiveTableParser implements AuditCommandParser {
   public AuditReplayCommand parse(Text inputLine, Function<Long, Long> relativeToAbsolute) throws IOException {
     String[] fields = inputLine.toString().split(FIELD_SEPARATOR);
     long absoluteTimestamp = relativeToAbsolute.apply(Long.parseLong(fields[0]));
-    return new AuditReplayCommand(absoluteTimestamp, fields[1], fields[2], fields[3], fields[4]);
+    return new AuditReplayCommand(absoluteTimestamp, fields[1], fields[2], fields[3], fields[4], fields[5]);
   }
 
 }
