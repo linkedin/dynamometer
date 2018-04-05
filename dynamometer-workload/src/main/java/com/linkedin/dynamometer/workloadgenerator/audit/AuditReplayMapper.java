@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.DelayQueue;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -130,6 +131,7 @@ public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text> {
   private double rateFactor;
   private long highestTimestamp;
   private List<AuditReplayThread> threads;
+  private DelayQueue<AuditReplayCommand> commandQueue;
   private Function<Long, Long> relativeToAbsoluteTimestamp;
   private AuditCommandParser commandParser;
 
@@ -185,8 +187,9 @@ public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text> {
     LOG.info("Starting " + numThreads + " threads");
 
     threads = new ArrayList<>();
+    commandQueue = new DelayQueue<>();
     for (int i = 0; i < numThreads; i++) {
-      AuditReplayThread thread = new AuditReplayThread(context);
+      AuditReplayThread thread = new AuditReplayThread(context, commandQueue);
       threads.add(thread);
       thread.start();
     }
@@ -201,11 +204,7 @@ public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text> {
     if (delay > MAX_READAHEAD_MS) {
       Thread.sleep(delay - (MAX_READAHEAD_MS / 2));
     }
-    int idx = cmd.getSrc().hashCode() % numThreads;
-    if (idx < 0) {
-      idx += numThreads;
-    }
-    threads.get(idx).addToQueue(cmd);
+    commandQueue.put(cmd);
     highestTimestamp = cmd.getAbsoluteTimestamp();
   }
 
