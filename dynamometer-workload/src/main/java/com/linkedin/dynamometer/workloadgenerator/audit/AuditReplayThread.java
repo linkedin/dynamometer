@@ -8,9 +8,11 @@ import com.google.common.base.Splitter;
 import com.linkedin.dynamometer.workloadgenerator.WorkloadDriver;
 import java.io.IOException;
 import java.net.URI;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.Map;
@@ -21,7 +23,6 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
-import org.apache.hadoop.hdfs.DFSClient;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.hdfs.protocol.HdfsFileStatus;
 import org.apache.hadoop.mapreduce.Counter;
@@ -49,11 +50,13 @@ public class AuditReplayThread extends Thread {
   private static final Log LOG = LogFactory.getLog(AuditReplayThread.class);
 
   private DelayQueue<AuditReplayCommand> commandQueue;
+  private ConcurrentMap<String, FileSystem> fsCache;
+  private URI namenodeUri;
+  private UserGroupInformation loginUser;
+  private Configuration mapperConf;
   // If any exception is encountered it will be stored here
   private Exception exception;
   private long startTimestampMs;
-  private FileSystem fs;
-  private DFSClient dfsClient;
   private boolean createBlocks;
 
   // Counters are not thread-safe so we store a local mapping in our thread
@@ -61,16 +64,16 @@ public class AuditReplayThread extends Thread {
   private Map<REPLAYCOUNTERS, Counter> replayCountersMap = new HashMap<>();
   private Map<String, Counter> individualCommandsMap = new HashMap<>();
 
-  AuditReplayThread(Mapper.Context mapperContext, DelayQueue<AuditReplayCommand> queue)
-      throws IOException {
+  AuditReplayThread(Mapper.Context mapperContext, DelayQueue<AuditReplayCommand> queue,
+      ConcurrentMap<String, FileSystem> fsCache) throws IOException {
     commandQueue = queue;
-    Configuration mapperConf = mapperContext.getConfiguration();
-    String namenodeURI = mapperConf.get(WorkloadDriver.NN_URI);
+    this.fsCache = fsCache;
+    loginUser = UserGroupInformation.getLoginUser();
+    mapperConf = mapperContext.getConfiguration();
+    namenodeUri = URI.create(mapperConf.get(WorkloadDriver.NN_URI));
     startTimestampMs = mapperConf.getLong(WorkloadDriver.START_TIMESTAMP_MS, -1);
     createBlocks = mapperConf.getBoolean(AuditReplayMapper.CREATE_BLOCKS_KEY,
         AuditReplayMapper.CREATE_BLOCKS_DEFAULT);
-    fs = FileSystem.get(URI.create(namenodeURI), mapperConf);
-    dfsClient = ((DistributedFileSystem) fs).getClient();
     LOG.info("Start timestamp: " + startTimestampMs);
     for (REPLAYCOUNTERS rc : REPLAYCOUNTERS.values()) {
       replayCountersMap.put(rc, new GenericCounter());
@@ -134,7 +137,7 @@ public class AuditReplayThread extends Thread {
           replayCountersMap.get(REPLAYCOUNTERS.LATECOMMANDS).increment(1);
           replayCountersMap.get(REPLAYCOUNTERS.LATECOMMANDSTOTALTIME).increment(-1 * delay);
         }
-        if (!replayLog(cmd.getCommand(), cmd.getSrc(), cmd.getDest())) {
+        if (!replayLog(cmd)) {
           replayCountersMap.get(REPLAYCOUNTERS.TOTALINVALIDCOMMANDS).increment(1);
         }
         cmd = commandQueue.take();
@@ -149,15 +152,33 @@ public class AuditReplayThread extends Thread {
 
   /**
    * Attempt to replay the provided command. Updates counters accordingly.
-   * @param command The name of the command to replay.
-   * @param src The source path of the command.
-   * @param dst The destination path of the command (null except for rename and concat).
+   * @param command The command to replay
    * @return True iff the command was successfully replayed (i.e., no exceptions were thrown).
    */
-  private boolean replayLog(String command, String src, String dst) {
+  private boolean replayLog(final AuditReplayCommand command) {
+    final String src = command.getSrc();
+    final String dst = command.getDest();
+    FileSystem proxyFs = fsCache.get(command.getSimpleUgi());
+    if (proxyFs == null) {
+      UserGroupInformation ugi = UserGroupInformation.createProxyUser(command.getSimpleUgi(), loginUser);
+      proxyFs = ugi.doAs(new PrivilegedAction<FileSystem>() {
+        @Override
+        public FileSystem run() {
+          try {
+            FileSystem fs = new DistributedFileSystem();
+            fs.initialize(namenodeUri, mapperConf);
+            return fs;
+          } catch (IOException ioe) {
+            throw new RuntimeException(ioe);
+          }
+        }
+      });
+      fsCache.put(command.getSimpleUgi(), proxyFs);
+    }
+    final FileSystem fs = proxyFs;
     ReplayCommand replayCommand;
     try {
-      replayCommand = ReplayCommand.valueOf(command.split(" ")[0].toUpperCase());
+      replayCommand = ReplayCommand.valueOf(command.getCommand().split(" ")[0].toUpperCase());
     } catch (IllegalArgumentException iae) {
       LOG.warn("Unsupported/invalid command: " + command);
       replayCountersMap.get(REPLAYCOUNTERS.TOTALUNSUPPORTEDCOMMANDS).increment(1);
@@ -191,7 +212,7 @@ public class AuditReplayThread extends Thread {
           break;
 
         case LISTSTATUS:
-          dfsClient.listPaths(src, HdfsFileStatus.EMPTY_NAME);
+          ((DistributedFileSystem) fs).getClient().listPaths(src, HdfsFileStatus.EMPTY_NAME);
           break;
 
         case APPEND:

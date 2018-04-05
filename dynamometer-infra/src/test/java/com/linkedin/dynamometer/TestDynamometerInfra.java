@@ -304,8 +304,8 @@ public class TestDynamometerInfra {
       fail("Workload job failed");
     }
     Counters counters = client.getWorkloadJob().getCounters();
-    assertEquals(3, counters.findCounter(AuditReplayMapper.REPLAYCOUNTERS.TOTALCOMMANDS).getValue());
-    assertEquals(0, counters.findCounter(AuditReplayMapper.REPLAYCOUNTERS.TOTALINVALIDCOMMANDS).getValue());
+    assertEquals(6, counters.findCounter(AuditReplayMapper.REPLAYCOUNTERS.TOTALCOMMANDS).getValue());
+    assertEquals(1, counters.findCounter(AuditReplayMapper.REPLAYCOUNTERS.TOTALINVALIDCOMMANDS).getValue());
 
     LOG.info("Waiting for infra application to exit");
     GenericTestUtils.waitFor(new Supplier<Boolean>() {

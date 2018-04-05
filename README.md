@@ -126,6 +126,7 @@ The other supporter format is `com.linkedin.dynamometer.workloadgenerator.audit.
 files in the format produced by a Hive query with output fields, in order:
 
 * `relativeTimestamp`: event time offset, in milliseconds, from the start of the trace
+* `ugi`: user information of the submitting user
 * `command`: name of the command, e.g. 'open'
 * `source`: source path
 * `dest`: destination path
@@ -134,7 +135,7 @@ files in the format produced by a Hive query with output fields, in order:
 Assuming your audit logs are available in Hive, this can be produced via a Hive query looking like:
 ```sql
 INSERT OVERWRITE DIRECTORY '${outputPath}'
-SELECT (timestamp - ${startTimestamp} AS relativeTimestamp, command, source, dest, sourceIP
+SELECT (timestamp - ${startTimestamp} AS relativeTimestamp, ugi, command, source, dest, sourceIP
 FROM '${auditLogTableLocation}'
 WHERE timestamp >= ${startTimestamp} AND timestamp < ${endTimestamp}
 DISTRIBUTE BY src

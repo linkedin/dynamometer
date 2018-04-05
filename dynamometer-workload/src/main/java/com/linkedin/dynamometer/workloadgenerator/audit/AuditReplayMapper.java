@@ -13,11 +13,14 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
@@ -187,9 +190,10 @@ public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text> {
     LOG.info("Starting " + numThreads + " threads");
 
     threads = new ArrayList<>();
+    ConcurrentMap<String, FileSystem> fsCache = new ConcurrentHashMap<>();
     commandQueue = new DelayQueue<>();
     for (int i = 0; i < numThreads; i++) {
-      AuditReplayThread thread = new AuditReplayThread(context, commandQueue);
+      AuditReplayThread thread = new AuditReplayThread(context, commandQueue, fsCache);
       threads.add(thread);
       thread.start();
     }

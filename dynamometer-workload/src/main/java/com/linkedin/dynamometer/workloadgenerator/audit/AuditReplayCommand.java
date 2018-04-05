@@ -4,8 +4,14 @@
  */
 package com.linkedin.dynamometer.workloadgenerator.audit;
 
+import java.io.IOException;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -19,14 +25,19 @@ import java.util.concurrent.TimeUnit;
  */
 class AuditReplayCommand implements Delayed {
 
+  private static final Logger LOG = LoggerFactory.getLogger(AuditReplayCommand.class);
+  private static final Pattern SIMPLE_UGI_PATTERN = Pattern.compile("([^/@ ]*).*?");
+
   private long absoluteTimestamp;
+  private String ugi;
   private String command;
   private String src;
   private String dest;
   private String sourceIP;
 
-  AuditReplayCommand(long absoluteTimestamp, String command, String src, String dest, String sourceIP) {
+  AuditReplayCommand(long absoluteTimestamp, String ugi, String command, String src, String dest, String sourceIP) {
     this.absoluteTimestamp = absoluteTimestamp;
+    this.ugi = ugi;
     this.command = command;
     this.src = src;
     this.dest = dest;
@@ -35,6 +46,20 @@ class AuditReplayCommand implements Delayed {
 
   long getAbsoluteTimestamp() {
     return absoluteTimestamp;
+  }
+
+  String getSimpleUgi() {
+    Matcher m = SIMPLE_UGI_PATTERN.matcher(ugi);
+    if (m.matches()) {
+      return m.group(1);
+    } else {
+      LOG.error("Error parsing simple UGI <{}>; falling back to current user", ugi);
+      try {
+        return UserGroupInformation.getCurrentUser().getShortUserName();
+      } catch (IOException ioe) {
+        return "";
+      }
+    }
   }
 
   String getCommand() {
@@ -79,7 +104,7 @@ class AuditReplayCommand implements Delayed {
   private static class PoisonPillCommand extends AuditReplayCommand {
 
     private PoisonPillCommand(long absoluteTimestamp) {
-      super(absoluteTimestamp, null, null, null, null);
+      super(absoluteTimestamp, null, null, null, null, null);
     }
 
     @Override
@@ -99,13 +124,13 @@ class AuditReplayCommand implements Delayed {
       return false;
     }
     AuditReplayCommand o = (AuditReplayCommand) other;
-    return absoluteTimestamp == o.absoluteTimestamp && command.equals(o.command) && src.equals(o.src) &&
-        dest.equals(o.dest) && sourceIP.equals(o.sourceIP);
+    return absoluteTimestamp == o.absoluteTimestamp && ugi.equals(o.ugi) && command.equals(o.command) &&
+        src.equals(o.src) && dest.equals(o.dest) && sourceIP.equals(o.sourceIP);
   }
 
   @Override
   public String toString() {
-    return String.format("AuditReplayCommand(absoluteTimestamp=%d, command=%s, src=%s, dest=%s, sourceIP=%s",
-        absoluteTimestamp, command, src, dest, sourceIP);
+    return String.format("AuditReplayCommand(absoluteTimestamp=%d, ugi=%s, command=%s, src=%s, dest=%s, sourceIP=%s",
+        absoluteTimestamp, ugi, command, src, dest, sourceIP);
   }
 }

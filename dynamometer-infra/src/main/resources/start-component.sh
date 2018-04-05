@@ -247,7 +247,7 @@ EOF
   ln -snf "`pwd`/VERSION" "$nameDir/current/VERSION"
   chmod 700 "$nameDir/current/"*
 
-  # To be able to use the custom block placement policy
+  # To be able to use the custom block placement policy and the AllowAllImpersonationProvider
   export HADOOP_CLASSPATH="`pwd`/dynamometer.jar:$HADOOP_CLASSPATH"
 
  read -r -d '' namenodeConfigs <<EOF
@@ -266,9 +266,10 @@ EOF
   -D dfs.namenode.kerberos.principal=
   -D dfs.namenode.keytab.file=
   -D dfs.namenode.safemode.threshold-pct=0.0f
-  -D dfs.permissions.enabled=false
+  -D dfs.permissions.enabled=true
   -D dfs.cluster.administrators="*"
   -D dfs.block.replicator.classname=com.linkedin.dynamometer.BlockPlacementPolicyAlwaysSatisfied
+  -D hadoop.security.impersonation.provider.class=com.linkedin.dynamometer.AllowAllImpersonationProvider
   ${configOverrides}
 EOF
 
