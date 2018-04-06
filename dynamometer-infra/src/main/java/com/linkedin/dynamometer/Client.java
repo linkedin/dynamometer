@@ -14,9 +14,12 @@ import com.linkedin.dynamometer.workloadgenerator.WorkloadDriver;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -44,7 +47,9 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
+import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.io.DataOutputBuffer;
+import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.JobStatus;
 import org.apache.hadoop.security.Credentials;
@@ -583,48 +588,61 @@ public class Client extends Configured implements Tool {
    * with the correct resource settings.
    * @throws IOException
    */
-  private void setupRemoteResource(String srcPathString, ApplicationId appId,
+  private void setupRemoteResource(String srcPath, ApplicationId appId,
       DynoResource resource, Map<String, String> env) throws IOException {
 
-    Path srcPath = new Path(srcPathString);
-
     FileStatus remoteFileStatus;
+    Path dstPath;
 
-    FileSystem localFS = FileSystem.getLocal(getConf());
-    // Qualify relative paths against the local FS
-    srcPath = srcPath.makeQualified(localFS.getUri(), localFS.getWorkingDirectory());
-
-    FileSystem srcFS = srcPath.getFileSystem(getConf());
-
-    if (srcFS.getUri().equals(localFS.getUri())) {
-
-      if (resource.getType() == LocalResourceType.ARCHIVE && localFS.getFileStatus(srcPath).isDirectory()) {
-        File tempZip = File.createTempFile(srcPath.getName(), ".zip", new File(srcPath.getParent().toUri()));
-        ZipOutputStream zout = new ZipOutputStream(new FileOutputStream(tempZip));
-        File srcFile = new File(srcPath.toUri());
-        addFileToZipRecursively(srcFile, srcFile, zout);
-        zout.close();
-        tempZip.deleteOnExit();
-        srcPath = new Path(tempZip.toURI());
+    URI srcURI;
+    try {
+      srcURI = new URI(srcPath);
+    } catch (URISyntaxException e) {
+      throw new IOException(e);
+    }
+    if (srcURI.getScheme() == null || srcURI.getScheme().equals(FileSystem.getLocal(getConf()).getScheme()) ||
+        srcURI.getScheme().equals("jar")) {
+      // Need to upload this resource to remote storage
+      File srcFile = new File(srcURI.getSchemeSpecificPart());
+      dstPath = new Path(getRemoteStoragePath(getConf(), appId), srcFile.getName());
+      if (resource.getType() == LocalResourceType.ARCHIVE && srcFile.isDirectory()) {
+        if ("jar".equals(srcURI.getScheme())) {
+          throw new IllegalArgumentException(String.format(
+              "Resources in JARs can't be auto-zipped; resource %s is ARCHIVE and src is a directory: %s",
+              resource.getResourcePath(), srcPath));
+        }
+        dstPath = dstPath.suffix(".zip");
       }
-      Path dstPath = new Path(getRemoteStoragePath(getConf(), appId), srcPath.getName());
-      LOG.info("Uploading resource " + resource + " from " + srcPath + " to " + dstPath);
       FileSystem remoteFS = dstPath.getFileSystem(getConf());
-      remoteFS.copyFromLocalFile(false, true, srcPath, dstPath);
+      LOG.info("Uploading resource " + resource + " from " + srcPath + " to " + dstPath);
+      try (OutputStream outputStream = remoteFS.create(dstPath, true)) {
+        if ("jar".equals(srcURI.getScheme())) {
+          try (InputStream inputStream = new URL(srcPath).openStream()) {
+            IOUtils.copyBytes(inputStream, outputStream, getConf());
+          }
+        } else if (resource.getType() == LocalResourceType.ARCHIVE && srcFile.isDirectory()) {
+          ZipOutputStream zout = new ZipOutputStream(outputStream);
+          addFileToZipRecursively(srcFile, srcFile, zout);
+          zout.close();
+        } else {
+          try (InputStream inputStream = new FileInputStream(srcFile)){
+            IOUtils.copyBytes(inputStream, outputStream, getConf());
+          }
+        }
+      }
       remoteFileStatus = remoteFS.getFileStatus(dstPath);
-      srcFS = remoteFS;
     } else {
       LOG.info("Using resource " + resource + " directly from current location: " + srcPath);
+      dstPath = new Path(srcPath);
       // non-local file system; we can just use it directly from where it is
-      remoteFileStatus = srcFS.getFileStatus(srcPath);
+      remoteFileStatus = FileSystem.get(dstPath.toUri(), getConf()).getFileStatus(dstPath);
       if (remoteFileStatus.isDirectory()) {
-        throw new IllegalArgumentException("If resource is on remote filesystem, " +
-            "must be a file: " + srcPath);
+        throw new IllegalArgumentException("If resource is on remote filesystem, must be a file: " + srcPath);
       }
     }
-    env.put(resource.getLocationEnvVar(), srcFS.makeQualified(remoteFileStatus.getPath()).toString());
-    env.put(resource.getTimestampEnvVar(), remoteFileStatus.getModificationTime() + "");
-    env.put(resource.getLengthEnvVar(), remoteFileStatus.getLen() + "");
+    env.put(resource.getLocationEnvVar(), dstPath.toString());
+    env.put(resource.getTimestampEnvVar(), String.valueOf(remoteFileStatus.getModificationTime()));
+    env.put(resource.getLengthEnvVar(), String.valueOf(remoteFileStatus.getLen()));
   }
 
   /**
@@ -643,10 +661,7 @@ public class Client extends Configured implements Tool {
         DynoConstants.DYNAMOMETER_STORAGE_DIR + "/" + appId));
   }
 
-  private static final byte[] COPY_BUFFER = new byte[1024];
-
-  private static void addFileToZipRecursively(File root, File file, ZipOutputStream out)
-      throws IOException {
+  private void addFileToZipRecursively(File root, File file, ZipOutputStream out) throws IOException {
 
     File[] files = file.listFiles();
     if (files == null) { // Not a directory
@@ -655,10 +670,7 @@ public class Client extends Configured implements Tool {
       try {
         FileInputStream in = new FileInputStream(file.getAbsolutePath());
         out.putNextEntry(new ZipEntry(relativePath));
-        int len;
-        while ((len = in.read(COPY_BUFFER)) > 0) {
-          out.write(COPY_BUFFER, 0, len);
-        }
+        IOUtils.copyBytes(in, out, getConf(), false);
         out.closeEntry();
         in.close();
       } catch (FileNotFoundException fnfe) {
