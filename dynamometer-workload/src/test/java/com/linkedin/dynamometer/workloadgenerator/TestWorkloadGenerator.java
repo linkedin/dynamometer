@@ -100,7 +100,7 @@ public class TestWorkloadGenerator {
     boolean success = workloadJob.waitForCompletion(true);
     assertTrue("workload job should succeed", success);
     Counters counters = workloadJob.getCounters();
-    assertEquals(4, counters.findCounter(AuditReplayMapper.REPLAYCOUNTERS.TOTALCOMMANDS).getValue());
+    assertEquals(6, counters.findCounter(AuditReplayMapper.REPLAYCOUNTERS.TOTALCOMMANDS).getValue());
     assertEquals(1, counters.findCounter(AuditReplayMapper.REPLAYCOUNTERS.TOTALINVALIDCOMMANDS).getValue());
     assertTrue(dfs.getFileStatus(new Path("/tmp/test1")).isFile());
     assertTrue(dfs.getFileStatus(new Path("/tmp/testDirRenamed")).isDirectory());
