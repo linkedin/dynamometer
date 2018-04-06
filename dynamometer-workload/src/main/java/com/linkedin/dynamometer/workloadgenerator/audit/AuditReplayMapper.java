@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.DelayQueue;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -24,6 +25,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
+import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 
@@ -137,6 +139,7 @@ public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text> {
   private DelayQueue<AuditReplayCommand> commandQueue;
   private Function<Long, Long> relativeToAbsoluteTimestamp;
   private AuditCommandParser commandParser;
+  private ScheduledThreadPoolExecutor progressExecutor;
 
   @Override
   public Class<? extends InputFormat> getInputFormat(Configuration conf) {
@@ -167,7 +170,7 @@ public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text> {
   }
 
   @Override
-  public void setup(Mapper.Context context) throws IOException {
+  public void setup(final Mapper.Context context) throws IOException {
     Configuration conf = context.getConfiguration();
     // WorkloadDriver ensures that the starttimestamp is set
     startTimestampMs = conf.getLong(WorkloadDriver.START_TIMESTAMP_MS, -1);
@@ -188,6 +191,16 @@ public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text> {
     };
 
     LOG.info("Starting " + numThreads + " threads");
+
+    progressExecutor = new ScheduledThreadPoolExecutor(1);
+    // half of the timeout or once per minute if none specified
+    long progressFrequencyMs = conf.getLong(MRJobConfig.TASK_TIMEOUT, 2 * 60 * 1000) / 2;
+    progressExecutor.scheduleAtFixedRate(new Runnable() {
+      @Override
+      public void run() {
+        context.progress();
+      }
+    }, progressFrequencyMs, progressFrequencyMs, TimeUnit.MILLISECONDS);
 
     threads = new ArrayList<>();
     ConcurrentMap<String, FileSystem> fsCache = new ConcurrentHashMap<>();
@@ -226,6 +239,7 @@ public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text> {
         threadException = Optional.of(t.getException());
       }
     }
+    progressExecutor.shutdown();
 
     if (threadException.isPresent()) {
       throw new RuntimeException("Exception in AuditReplayThread", threadException.get());
