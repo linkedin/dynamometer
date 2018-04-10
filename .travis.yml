@@ -6,4 +6,4 @@ jdk:
 env:
   - HADOOP_VERSION=2.7.5
   - HADOOP_VERSION=2.8.3
-script: "travis_wait ./gradlew test --stacktrace --info -Ddyno.hadoop.bin.version=${HADOOP_VERSION}"
+script: "./gradlew test --stacktrace --info -Ddyno.hadoop.bin.version=${HADOOP_VERSION}"
