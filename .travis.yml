@@ -1,0 +1,10 @@
+language: java
+git:
+  depth: 3
+jdk:
+  - oraclejdk8
+env:
+  - HADOOP_VERSION=2.7.5
+  - HADOOP_VERSION=2.8.3
+  - HADOOP_VERSION=2.9.0
+script: "./gradlew test -Ddyno.hadoop.bin.version=${HADOOP_VERSION}"

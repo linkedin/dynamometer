@@ -13,4 +13,4 @@ scripts.tar
 *~
 *.iml
 .idea/
-gradle*
+gradle.out
