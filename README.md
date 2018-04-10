@@ -1,4 +1,4 @@
-# Dynamometer
+# Dynamometer [![Build Status](https://travis-ci.org/linkedin/dynamometer.svg?branch=master)](https://travis-ci.org/linkedin/dynamometer)
 
 ## Overview
 
