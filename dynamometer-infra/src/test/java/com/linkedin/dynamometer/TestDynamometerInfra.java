@@ -60,9 +60,7 @@ import static org.junit.Assert.fail;
  * the workload job is launched and it is verified that it completes successfully
  * and is able to replay commands as expected.
  *
- * To run this test JAVA_HOME must be set correctly.
- * This also relies on the {@code tar} and {@code truncate} utilities
- * being available ({@code truncate} is generally required to run Dynamometer).
+ * To run this test JAVA_HOME must be set correctly, and the {@code tar} utility must be available.
  *
  * You can optionally specify which version of HDFS should be started within
  * the Dynamometer cluster; the default is {@value HADOOP_BIN_VERSION_DEFAULT}. This can be adjusted
@@ -117,12 +115,6 @@ public class TestDynamometerInfra {
     tarCheck.execute();
     if (tarCheck.getExitCode() != 0) {
       fail("tar command is not available");
-    }
-    Shell.ShellCommandExecutor truncateCheck =
-        new Shell.ShellCommandExecutor(new String[] {"bash", "-c", "command -v truncate"});
-    truncateCheck.execute();
-    if (truncateCheck.getExitCode() != 0) {
-      fail("truncate command is not available");
     }
 
     conf = new Configuration();
