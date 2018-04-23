@@ -86,7 +86,7 @@ public class TestDynamometerInfra {
 
   private static final String HADOOP_BIN_PATH_KEY = "dyno.hadoop.bin.path";
   private static final String HADOOP_BIN_VERSION_KEY = "dyno.hadoop.bin.version";
-  private static final String HADOOP_BIN_VERSION_DEFAULT = "2.7.5";
+  private static final String HADOOP_BIN_VERSION_DEFAULT = "2.7.6";
   private static final String FSIMAGE_FILENAME = "fsimage_0000000000000061740";
   private static final String VERSION_FILENAME = "VERSION";
 
