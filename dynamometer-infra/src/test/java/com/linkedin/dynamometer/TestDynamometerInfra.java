@@ -65,8 +65,8 @@ import static org.junit.Assert.fail;
  * being available ({@code truncate} is generally required to run Dynamometer).
  *
  * You can optionally specify which version of HDFS should be started within
- * the Dynamometer cluster; the default is 2.7.5. This can be adjusted by setting
- * the {@value HADOOP_BIN_VERSION_KEY} property. This will automatically download
+ * the Dynamometer cluster; the default is {@value HADOOP_BIN_VERSION_DEFAULT}. This can be adjusted
+ * by setting the {@value HADOOP_BIN_VERSION_KEY} property. This will automatically download
  * the correct Hadoop tarball for the specified version. It downloads from an Apache
  * mirror (by default {@value DynoInfraUtils#APACHE_DOWNLOAD_MIRROR_DEFAULT}); which mirror
  * is used can be controlled with the {@value DynoInfraUtils#APACHE_DOWNLOAD_MIRROR_KEY}
