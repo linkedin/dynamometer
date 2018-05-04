@@ -744,7 +744,8 @@ public class Client extends Configured implements Tool {
               }
             }
             DynoInfraUtils.waitForNameNodeStartup(namenodeProperties.get(), exitCritera, LOG);
-            DynoInfraUtils.waitForNameNodeReadiness(namenodeProperties.get(), numTotalDataNodes, exitCritera, LOG);
+            DynoInfraUtils.waitForNameNodeReadiness(namenodeProperties.get(), numTotalDataNodes, false,
+                exitCritera, LOG);
             break;
           } catch (IOException ioe) {
             LOG.error("Unexpected exception while waiting for NameNode readiness", ioe);

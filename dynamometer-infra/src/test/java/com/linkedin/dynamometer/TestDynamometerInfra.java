@@ -303,7 +303,7 @@ public class TestDynamometerInfra {
       fail("Unable to fetch NameNode properties");
     }
 
-    DynoInfraUtils.waitForNameNodeReadiness(namenodeProperties.get(), 3, falseSupplier, LOG);
+    DynoInfraUtils.waitForNameNodeReadiness(namenodeProperties.get(), 3, false, falseSupplier, LOG);
 
     // Test that we can successfully write to / read from the cluster
     try {
