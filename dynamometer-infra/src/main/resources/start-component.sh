@@ -235,11 +235,12 @@ namenode.sink.dyno-file.filename=${nnMetricOutputFileLocal}
 EOF
   fi
 
-  nameDir="$baseDir/name-data"
+  nameDir=${NN_NAME_DIR:-${baseDir}/name-data}
+  editsDir=${NN_EDITS_DIR:-${baseDir}/name-data}
   checkpointDir="$baseDir/checkpoint"
-  rm -rf "$nameDir" "$checkpointDir"
-  mkdir -p "$nameDir/current" "$checkpointDir"
-  chmod -R 700 "$nameDir" "$checkpointDir"
+  rm -rf "$nameDir" "$editsDir" "$checkpointDir"
+  mkdir -p "$nameDir/current" "$editsDir/current" "$checkpointDir"
+  chmod -R 700 "$nameDir" "$editsDir" "$checkpointDir"
   fsImageFile="`ls -1 | grep -E '^fsimage_[[:digit:]]+$' | tail -n 1`"
   fsImageMD5File="`ls -1 | grep -E '^fsimage_[[:digit:]]+.md5$' | tail -n 1`"
   ln -snf "`pwd`/$fsImageFile" "$nameDir/current/$fsImageFile"
@@ -256,8 +257,8 @@ EOF
   -D dfs.namenode.servicerpc-address=${nnHostname}:${nnServiceRpcPort}
   -D dfs.namenode.http-address=${nnHostname}:${nnHttpPort}
   -D dfs.namenode.https-address=${nnHostname}:0
-  -D dfs.namenode.name.dir=file://${baseDir}/name-data
-  -D dfs.namenode.edits.dir=file://${baseDir}/name-data
+  -D dfs.namenode.name.dir=file://${nameDir}
+  -D dfs.namenode.edits.dir=file://${editsDir}
   -D dfs.namenode.checkpoint.dir=file://${baseDir}/checkpoint
   -D dfs.namenode.kerberos.internal.spnego.principal=
   -D dfs.hosts=

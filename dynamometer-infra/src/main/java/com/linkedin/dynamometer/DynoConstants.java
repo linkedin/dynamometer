@@ -77,6 +77,12 @@ public class DynoConstants {
   public static final String NN_ADDITIONAL_ARGS_ENV = "NN_ADDITIONAL_ARGS";
   // Environment variable which will contain additional arguments for the DataNode
   public static final String DN_ADDITIONAL_ARGS_ENV = "DN_ADDITIONAL_ARGS";
+  // Environment variable which will contain the directory to use for the NameNode's name directory;
+  // if not specified a directory within the YARN container working directory will be used.
+  public static final String NN_NAME_DIR_ENV = "NN_NAME_DIR";
+  // Environment variable which will contain the directory to use for the NameNode's edits directory;
+  // if not specified a directory within the YARN container working directory will be used.
+  public static final String NN_EDITS_DIR_ENV = "NN_EDITS_DIR";
 
   public static final String NN_FILE_METRIC_PERIOD_ENV = "NN_FILE_METRIC_PERIOD";
 
