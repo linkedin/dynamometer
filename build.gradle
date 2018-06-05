@@ -4,12 +4,13 @@
  */
 buildscript {
   repositories {
-    mavenCentral()
-    jcenter()
+    maven {
+      url "https://plugins.gradle.org/m2/"
+    }
   }
   dependencies {
     // license-gradle plugin: https://github.com/hierynomus/license-gradle-plugin
-    classpath 'nl.javadude.gradle.plugins:license-gradle-plugin:0.11.0'
+    classpath "gradle.plugin.nl.javadude.gradle.plugins:license-gradle-plugin:0.14.0"
   }
 }
 
@@ -24,12 +25,24 @@ ext.deps = [
     'mapreduce-client-core': "org.apache.hadoop:hadoop-mapreduce-client-core:${hadoopVersion}",
     minicluster: "org.apache.hadoop:hadoop-minicluster:${hadoopVersion}",
     'hdfs-test': "org.apache.hadoop:hadoop-hdfs:${hadoopVersion}:tests",
+    'common-test': "org.apache.hadoop:hadoop-common:${hadoopVersion}:tests",
+    'yarn-server-test': "org.apache.hadoop:hadoop-yarn-server-tests:${hadoopVersion}:tests",
   ]
 ]
 
 allprojects {
   project.version= '0.1.0-SNAPSHOT'
   group = 'com.linkedin.dynamometer'
+}
+
+if (project.hasProperty('overrideBuildEnvironment')) {
+  // Allow for override of the environment via a property flag
+  apply from: project.overrideBuildEnvironment
+  final File overrideFile = rootProject.file(project.overrideBuildEnvironment)
+  assert overrideFile.isFile() : "The environment script ($overrideFile) does not exist or is not a file"
+  apply from: overrideFile
+} else {
+  apply from: 'defaultEnvironment.gradle'
 }
 
 subprojects {
@@ -39,11 +52,6 @@ subprojects {
   apply plugin: 'license'
 
   sourceCompatibility = 1.7
-
-  repositories {
-    mavenCentral()
-    mavenLocal()
-  }
 
   license {
     header rootProject.file('license_header')
