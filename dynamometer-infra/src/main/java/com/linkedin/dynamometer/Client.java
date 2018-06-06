@@ -22,6 +22,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -135,6 +137,7 @@ public class Client extends Configured implements Tool {
   public static final String MASTER_VCORES_DEFAULT = "1";
   public static final String MASTER_MEMORY_MB_ARG = "master_memory_mb";
   public static final String MASTER_MEMORY_MB_DEFAULT = "2048";
+  public static final String TOKEN_FILE_LOCATION_ARG = "token_file_location";
   public static final String WORKLOAD_REPLAY_ENABLE_ARG = "workload_replay_enable";
   public static final String WORKLOAD_INPUT_PATH_ARG = "workload_input_path";
   public static final String WORKLOAD_THREADS_PER_MAPPER_ARG = "workload_threads_per_mapper";
@@ -174,6 +177,9 @@ public class Client extends Configured implements Tool {
   private String remoteNameNodeRpcAddress = "";
   // True iff the NameNode should be launched within YARN
   private boolean launchNameNode;
+  // The path to the file which contains the delegation tokens to be used for the launched
+  // containers (may be null)
+  private String tokenFileLocation;
 
   // Holds all of the options which are passed to the AM
   private AMOptions amOptions;
@@ -277,6 +283,8 @@ public class Client extends Configured implements Tool {
     opts.addOptionGroup(hadoopBinaryGroup);
     opts.addOption(NAMENODE_SERVICERPC_ADDR_ARG, true, "Specify this option to run the NameNode " +
         "external to YARN. This is the service RPC address of the NameNode, e.g. localhost:9020.");
+    opts.addOption(TOKEN_FILE_LOCATION_ARG, true, "If specified, this file will be used as the delegation token(s) " +
+        "for the launched containers. Otherwise, the delegation token(s) for the default FileSystem will be used.");
     AMOptions.setOptions(opts);
 
     opts.addOption(WORKLOAD_REPLAY_ENABLE_ARG, false, "If specified, this client will additionally launch the workload "
@@ -375,6 +383,7 @@ public class Client extends Configured implements Tool {
     }
     this.amOptions = AMOptions.initFromParser(cliParser);
     this.clientTimeout = Integer.parseInt(cliParser.getOptionValue(TIMEOUT_ARG, TIMEOUT_DEFAULT));
+    this.tokenFileLocation = cliParser.getOptionValue(TOKEN_FILE_LOCATION_ARG);
 
     amOptions.verify();
 
@@ -488,22 +497,27 @@ public class Client extends Configured implements Tool {
 
     // Setup security tokens
     if (UserGroupInformation.isSecurityEnabled()) {
-      Credentials credentials = new Credentials();
-      String tokenRenewer = getConf().get(YarnConfiguration.RM_PRINCIPAL);
-      if (tokenRenewer == null || tokenRenewer.length() == 0) {
-        throw new IOException("Can't get Master Kerberos principal for the RM to use as renewer");
-      }
-
-      // For now, only getting tokens for the default file-system.
-      final Token<?> tokens[] = fs.addDelegationTokens(tokenRenewer, credentials);
-      if (tokens != null) {
-        for (Token<?> token : tokens) {
-          LOG.info("Got dt for " + fs.getUri() + "; " + token);
+      ByteBuffer fsTokens;
+      if (tokenFileLocation != null) {
+        fsTokens = ByteBuffer.wrap(Files.readAllBytes(Paths.get(tokenFileLocation)));
+      } else {
+        Credentials credentials = new Credentials();
+        String tokenRenewer = getConf().get(YarnConfiguration.RM_PRINCIPAL);
+        if (tokenRenewer == null || tokenRenewer.length() == 0) {
+          throw new IOException("Can't get Master Kerberos principal for the RM to use as renewer");
         }
+
+        // For now, only getting tokens for the default file-system.
+        final Token<?>[] tokens = fs.addDelegationTokens(tokenRenewer, credentials);
+        if (tokens != null) {
+          for (Token<?> token : tokens) {
+            LOG.info("Got dt for " + fs.getUri() + "; " + token);
+          }
+        }
+        DataOutputBuffer dob = new DataOutputBuffer();
+        credentials.writeTokenStorageToStream(dob);
+        fsTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
       }
-      DataOutputBuffer dob = new DataOutputBuffer();
-      credentials.writeTokenStorageToStream(dob);
-      ByteBuffer fsTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
       amContainer.setTokens(fsTokens);
     }
 
@@ -884,7 +898,7 @@ public class Client extends Configured implements Tool {
   /**
    * Best-effort attempt to clean up any remaining applications (infrastructure or workload).
    */
-  private void attemptCleanup() {
+  public void attemptCleanup() {
     LOG.info("Attempting to clean up remaining running applications.");
     if (workloadJob != null) {
       try {
