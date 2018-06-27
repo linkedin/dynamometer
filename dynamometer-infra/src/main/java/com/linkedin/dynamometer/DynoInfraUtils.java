@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
@@ -221,6 +222,7 @@ public class DynoInfraUtils {
     final int totalBlocks = Integer.parseInt(fetchNameNodeJMXValue(nameNodeProperties, FSNAMESYSTEM_STATE_JMX_QUERY,
         JMX_BLOCKS_TOTAL));
     Thread blockReportThread = null;
+    final AtomicBoolean doneWaiting = new AtomicBoolean(false);
     if (triggerBlockReports) {
       // This will be significantly lower than the actual expected number of blocks because it does not
       // take into account replication factor. However the block reports are pretty binary; either a full
@@ -255,6 +257,10 @@ public class DynoInfraUtils {
                 String liveNodeListString =
                     fetchNameNodeJMXValue(nameNodeProperties, NAMENODE_INFO_JMX_QUERY, JMX_LIVE_NODES_LIST);
                 Set<String> datanodesToReport = parseStaleDataNodeList(liveNodeListString, blockThreshold, log);
+                if (datanodesToReport.isEmpty() && doneWaiting.get()) {
+                  log.info("BlockReportThread exiting; all DataNodes have reported blocks");
+                  break;
+                }
                 log.info(String.format("Queueing %d Datanodes for block report: %s", datanodesToReport.size(),
                     Joiner.on(",").join(datanodesToReport)));
                 DatanodeInfo[] datanodes = dfs.getDataNodeStats();
@@ -284,6 +290,7 @@ public class DynoInfraUtils {
           log.info("Block reporting thread exiting");
         }
       };
+      blockReportThread.setDaemon(true);
       blockReportThread.setUncaughtExceptionHandler(new YarnUncaughtExceptionHandler());
       blockReportThread.start();
     }
@@ -299,16 +306,7 @@ public class DynoInfraUtils {
         JMX_UNDER_REPLICATED_BLOCKS, maxUnderreplicatedBlocks, totalBlocks*0.001, true, nameNodeProperties,
         shouldExit, log);
     log.info("NameNode is ready for use!");
-    if (blockReportThread != null) {
-      blockReportThread.interrupt();
-      log.debug("Interrupted block report thread; joining");
-      blockReportThread.join(5000);
-      if (blockReportThread.isAlive()) {
-        log.debug("Joined block report thread");
-      } else {
-        log.warn("Unable to join block report thread after 5s; continuing");
-      }
-    }
+    doneWaiting.set(true);
   }
 
   /**
