@@ -42,7 +42,7 @@ fi
 
 read -d '' -r awk_script <<'EOF'
 BEGIN {
-    metric_regex="[[:space:]]"metric"=([[:digit:].]+)";
+    metric_regex="[[:space:]]"metric"=([[:digit:].E]+)";
     end_ts=start_ts+(period_minutes*60*1000)
     last_val=0
     last_ts=start_ts
