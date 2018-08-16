@@ -61,7 +61,7 @@ if ! hdfs dfs -mkdir -p "$remote_dir"; then
 fi
 for file in ${image_file} ${image_file_xml} ${image_file_md5} ${version_file}; do
   echo "Uploading ${file}..."
-  if ! hdfs dfs -copyFromLocal "$file" "${remote_dir}"; then
+  if ! hdfs dfs -copyFromLocal -f "$file" "${remote_dir}"; then
     echo "Error while uploading ${file}; exiting"
       rm -rf "${tmp_dir}"
     exit 1
