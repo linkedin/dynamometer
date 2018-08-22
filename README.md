@@ -160,7 +160,7 @@ to an external NameNode's service RPC address.
 First launch the infrastructure application to begin the startup of the internal HDFS cluster, e.g.:
 ```
 ./bin/start-dynamometer-cluster.sh
-    -hadoop_binary hadoop-2.7.4.tar.gz
+    -hadoop_binary_path hadoop-2.7.4.tar.gz
     -conf_path my-hadoop-conf
     -fs_image_dir hdfs:///fsimage
     -block_list_path hdfs:///dyno/blocks
