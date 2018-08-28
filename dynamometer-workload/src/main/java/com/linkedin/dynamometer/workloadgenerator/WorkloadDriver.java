@@ -141,7 +141,7 @@ public class WorkloadDriver extends Configured implements Tool {
 
   private Class<? extends WorkloadMapper> getMapperClass(String className) throws ClassNotFoundException {
     if (!className.contains(".")) {
-      className = WorkloadDriver.class.getPackage().getName() + "." + className;
+      className = WorkloadDriver.class.getPackage().getName() + ".audit." + className;
     }
     Class<?> mapperClass = getConf().getClassByName(className);
     if (!WorkloadMapper.class.isAssignableFrom(mapperClass)) {
