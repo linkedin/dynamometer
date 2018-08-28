@@ -63,7 +63,7 @@ A number of steps are required in advance of starting your first Dyno-HDFS clust
   All of these files must be placed somewhere on HDFS where the various jobs will be able to access them.
   They should all be in the same folder, e.g. `hdfs:///dyno/fsimage`.
 
-  All of these steps can be automated with the `upload-fsimage.sh` script, e.g.:
+  All these steps can be automated with the `upload-fsimage.sh` script, e.g.:
   ```
   ./bin/upload-fsimage.sh 0001 hdfs:///dyno/fsimage
   ```
@@ -71,7 +71,7 @@ A number of steps are required in advance of starting your first Dyno-HDFS clust
 * Collect the Hadoop distribution tarball to use to start the Dyno-NN and -DNs. For example, if
   testing against Hadoop 2.7.4, use
   [hadoop-2.7.4.tar.gz](http://www.apache.org/dyn/closer.cgi/hadoop/common/hadoop-2.7.4/hadoop-2.7.4.tar.gz).
-  This distribution contains a number of components unnecessary for Dynamometer (e.g. YARN), so to reduce
+  This distribution contains several components unnecessary for Dynamometer (e.g. YARN), so to reduce
   its size, you can optionally use the `create-slim-hadoop-tar.sh` script:
   ```
   ./bin/create-slim-hadoop-tar.sh hadoop-VERSION.tar.gz
@@ -85,7 +85,7 @@ A number of steps are required in advance of starting your first Dyno-HDFS clust
 * Prepare a configuration directory. You will need to specify a configuration directory with the standard
   Hadoop configuration layout, e.g. it should contain `etc/hadoop/*-site.xml`. This determines with what
   configuration the Dyno-NN and -DNs will be launched. Configurations that must be modified for
-  Dynamometer to work properly (e.g. `fs.defaultFS` or `dfs.namenode.name.dir`) will be overriden
+  Dynamometer to work properly (e.g. `fs.defaultFS` or `dfs.namenode.name.dir`) will be overridden
   at execution time. This can be a directory if it is available locally, else an archive file on local
   or remote (HDFS) storage.
 
