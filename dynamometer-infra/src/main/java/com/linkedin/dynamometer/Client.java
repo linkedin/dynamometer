@@ -34,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
@@ -309,7 +310,9 @@ public class Client extends Configured implements Tool {
    * Helper function to print out usage
    */
   private void printUsage() {
-    new HelpFormatter().printHelp("Client", opts);
+    HelpFormatter formatter = new HelpFormatter();
+    formatter.setWidth(100); // Option names are long so increasing the width is helpful
+    formatter.printHelp("Client", opts);
   }
 
   /**
@@ -320,16 +323,13 @@ public class Client extends Configured implements Tool {
    */
   public boolean init(String[] args) throws ParseException, IOException {
 
-    CommandLine cliParser = new GnuParser().parse(opts, args);
-
-    if (args.length == 0) {
-      throw new IllegalArgumentException("No args specified for client to initialize");
-    }
-
-    if (cliParser.hasOption("help")) {
+    CommandLineParser parser = new GnuParser();
+    if (parser.parse(new Options().addOption("h", "help", false, "Shows this message."), args, true).hasOption("h")) {
       printUsage();
       return false;
     }
+
+    CommandLine cliParser = parser.parse(opts, args);
 
     yarnClient = YarnClient.createYarnClient();
     yarnClient.init(getConf());
