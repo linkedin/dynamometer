@@ -38,8 +38,9 @@ import java.util.regex.Pattern;
  */
 class XMLParser {
 
+  // Legacy block id can be negative
   private static final Pattern BLOCK_PATTERN =
-      Pattern.compile("<block><id>(\\d+)</id><genstamp>(\\d+)</genstamp><numBytes>(\\d+)</numBytes></block>");
+      Pattern.compile("<block><id>(-?\\d+)</id><genstamp>(\\d+)</genstamp><numBytes>(\\d+)</numBytes></block>");
 
   private State currentState = State.DEFAULT;
   private short currentReplication;
