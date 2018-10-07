@@ -26,11 +26,13 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
@@ -332,7 +334,19 @@ public class SimulatedMultiStorageFSDataset extends SimulatedFSDataset {
    */
   private static class SimulatedBPStorage {
     private long used;    // in bytes
-    private final Map<Block, BInfo> blockMap = new HashMap<>();
+    private static final Comparator<Object> LONG_AND_BLOCK_COMPARATOR
+        = new Comparator<Object>() {
+
+      @Override
+      public int compare(Object o1, Object o2) {
+        long lookup = ((Block) o1).getBlockId();
+        long stored = ((Block) o2).getBlockId();
+        return Long.compare(lookup, stored);
+      }
+    };
+
+    private final Map<Block, BInfo> blockMap =
+        new TreeMap<>(LONG_AND_BLOCK_COMPARATOR);
 
     long getUsed() {
       return used;
