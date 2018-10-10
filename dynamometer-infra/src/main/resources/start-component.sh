@@ -163,15 +163,13 @@ if [ "$component" = "datanode" ]; then
     listingFiles+=("file://${listingFile}")
   done 
 
-  localHostname=`hostname`
-
   read -r -d '' datanodeClusterConfigs <<EOF
     -D fs.defaultFS=${nnServiceRpcAddress}
-    -D dfs.datanode.hostname=${localHostname}
+    -D dfs.datanode.hostname=$(hostname)
     -D dfs.datanode.data.dir=${dataDirs}
-    -D dfs.datanode.ipc.address=${localHostname}:0
-    -D dfs.datanode.http.address=${localHostname}:0
-    -D dfs.datanode.address=${localHostname}:0
+    -D dfs.datanode.ipc.address=0.0.0.0:0
+    -D dfs.datanode.http.address=0.0.0.0:0
+    -D dfs.datanode.address=0.0.0.0:0
     -D dfs.datanode.directoryscan.interval=-1
     -D fs.du.interval=43200000
     -D fs.getspaceused.jitterMillis=21600000
