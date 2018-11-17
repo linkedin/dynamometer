@@ -55,6 +55,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.mapreduce.Job;
@@ -481,7 +482,10 @@ public class Client extends Configured implements Tool {
     amContainer.setApplicationACLs(acls);
 
     FileSystem fs = FileSystem.get(getConf());
-    fs.mkdirs(getRemoteStoragePath(getConf(), infraAppId));
+    Path path = getRemoteStoragePath(getConf(), infraAppId);
+    fs.mkdirs(path);
+    LOG.info("Making directory in HDFS for files at: " + path.toString());
+    fs.setPermission(path, new FsPermission("777"));
 
     // Set the env variables to be setup in the env where the application master will be run
     Map<String, String> env = setupRemoteResourcesGetEnv();
