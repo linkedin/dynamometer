@@ -139,6 +139,9 @@ public class AuditReplayThread extends Thread {
       AuditReplayCommand cmd = commandQueue.take();
       while (!cmd.isPoison()) {
         replayCountersMap.get(REPLAYCOUNTERS.TOTALCOMMANDS).increment(1);
+        if (cmd.isTargeted()) {
+          replayCountersMap.get(REPLAYCOUNTERS.TOTALUGICOMMANDS).increment(1);
+        }
         delay = cmd.getDelay(TimeUnit.MILLISECONDS);
         if (delay < -5) { // allow some tolerance here
           replayCountersMap.get(REPLAYCOUNTERS.LATECOMMANDS).increment(1);
@@ -147,6 +150,7 @@ public class AuditReplayThread extends Thread {
         if (!replayLog(cmd)) {
           replayCountersMap.get(REPLAYCOUNTERS.TOTALINVALIDCOMMANDS).increment(1);
         }
+
         cmd = commandQueue.take();
       }
     } catch (InterruptedException e) {

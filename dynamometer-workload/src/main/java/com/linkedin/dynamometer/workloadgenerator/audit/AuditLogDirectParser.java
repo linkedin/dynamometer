@@ -50,6 +50,34 @@ public class AuditLogDirectParser implements AuditCommandParser {
 
   @Override
   public AuditReplayCommand parse(Text inputLine, Function<Long, Long> relativeToAbsolute) throws IOException {
+    Map<String, String> parameterMap = getParameterMap(inputLine);
+    return new AuditReplayCommand(relativeToAbsolute.apply(Long.valueOf(parameterMap.get("relativeTimestamp"))),
+            // Split the UGI on space to remove the auth and proxy portions of it
+            SPACE_SPLITTER.split(parameterMap.get("ugi")).iterator().next(),
+            parameterMap.get("cmd").replace("(options:", "(options="),
+            parameterMap.get("src"), parameterMap.get("dst"), parameterMap.get("ip"));
+  }
+
+  @Override
+  public AuditReplayCommand parse(
+          Text inputLine,
+          Function<String, Boolean> isTargetUgi,
+          Function<Long, Long> relativeToAbsolute,
+          Function<Long, Long> ugiRelativeToAbsolute
+  ) throws IOException {
+    Map<String, String> parameterMap = getParameterMap(inputLine);
+    String ugi = SPACE_SPLITTER.split(parameterMap.get("ugi")).iterator().next();
+    long relativeTimestamp = Long.valueOf(parameterMap.get("relativeTimestamp"));
+    long absoluteTimestamp = isTargetUgi.apply(ugi)
+            ? ugiRelativeToAbsolute.apply(relativeTimestamp) : relativeToAbsolute.apply(relativeTimestamp);
+    return new AuditReplayCommand(absoluteTimestamp,
+            // Split the UGI on space to remove the auth and proxy portions of it
+            ugi,
+            parameterMap.get("cmd").replace("(options:", "(options="),
+            parameterMap.get("src"), parameterMap.get("dst"), parameterMap.get("ip"));
+  }
+
+  private Map<String, String> getParameterMap(Text inputLine) throws IOException {
     Matcher m = MESSAGE_ONLY_PATTERN.matcher(inputLine.toString());
     if (!m.find()) {
       throw new IOException("Unable to find valid message pattern from audit log line: " + inputLine);
@@ -63,11 +91,8 @@ public class AuditLogDirectParser implements AuditCommandParser {
     // We sanitize the = in the rename options field into a : so we can split on =
     String auditMessageSanitized = m.group(2).replace("(options=", "(options:");
     Map<String, String> parameterMap = AUDIT_SPLITTER.split(auditMessageSanitized);
-    return new AuditReplayCommand(relativeToAbsolute.apply(relativeTimestamp),
-        // Split the UGI on space to remove the auth and proxy portions of it
-        SPACE_SPLITTER.split(parameterMap.get("ugi")).iterator().next(),
-        parameterMap.get("cmd").replace("(options:", "(options="),
-        parameterMap.get("src"), parameterMap.get("dst"), parameterMap.get("ip"));
-  }
+    parameterMap.put("relativeTimestamp", Long.toString(relativeTimestamp));
 
+    return parameterMap;
+  }
 }

@@ -57,6 +57,11 @@ import static com.linkedin.dynamometer.workloadgenerator.audit.AuditReplayMapper
  * timestamps will be divided by this rate factor, effectively changing the rate at which they are
  * replayed. For example, a rate factor of 2 would make the replay occur twice as fast, and a rate
  * factor of 0.5 would make it occur half as fast.
+ *
+ * For some of heavy users for HDFS, {@value LOAD_TEST_RATE} and {@value LOAD_TEST_UGI} can be combined
+ * to increase the replay speed of the targeted ugi with certain rate. Notice that the rate only makes
+ * sense when there is a targeted ugi, and this should be used only when the base rate is 1. This is to
+ * make the comparison easier to understand without too many variables.
  */
 public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text, UserCommandKey, CountTimeWritable> {
 
@@ -68,6 +73,10 @@ public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text, UserCo
   public static final boolean CREATE_BLOCKS_DEFAULT = true;
   public static final String RATE_FACTOR_KEY = "auditreplay.rate-factor";
   public static final double RATE_FACTOR_DEFAULT = 1.0;
+
+  public static final String LOAD_TEST_UGI = "loadtest.target-ugi";
+  public static final String LOAD_TEST_RATE = "loadtest.target-rate";
+
   public static final String COMMAND_PARSER_KEY = "auditreplay.command-parser.class";
   public static final Class<AuditLogDirectParser> COMMAND_PARSER_DEFAULT = AuditLogDirectParser.class;
 
@@ -101,7 +110,9 @@ public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text, UserCo
     // Total number of read operations
     TOTALREADCOMMANDS,
     // Total latency for all read operations
-    TOTALREADCOMMANDLATENCY
+    TOTALREADCOMMANDLATENCY,
+    // Total commands from targeted ugi
+    TOTALUGICOMMANDS,
   }
 
   public enum ReplayCommand {
@@ -138,10 +149,14 @@ public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text, UserCo
   private long startTimestampMs;
   private int numThreads;
   private double rateFactor;
+  private String targetUgi;
+  private double targetUgiRate;
   private long highestTimestamp;
   private List<AuditReplayThread> threads;
   private DelayQueue<AuditReplayCommand> commandQueue;
+  private Function<String, Boolean> isTargetUgi;
   private Function<Long, Long> relativeToAbsoluteTimestamp;
+  private Function<Long, Long> targetRelativeToAbsoluteTimestamp;
   private AuditCommandParser commandParser;
   private ScheduledThreadPoolExecutor progressExecutor;
 
@@ -176,6 +191,13 @@ public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text, UserCo
     startTimestampMs = conf.getLong(WorkloadDriver.START_TIMESTAMP_MS, -1);
     numThreads = conf.getInt(NUM_THREADS_KEY, NUM_THREADS_DEFAULT);
     rateFactor = conf.getDouble(RATE_FACTOR_KEY, RATE_FACTOR_DEFAULT);
+    targetUgi = conf.get(LOAD_TEST_UGI);
+    targetUgiRate = conf.getDouble(LOAD_TEST_RATE, RATE_FACTOR_DEFAULT);
+
+    if (targetUgiRate != 1.0 && (targetUgi == null || rateFactor != 1.0)) {
+      throw new IOException("Either target ugi needs to be specified or base rate factor has to be 1");
+    }
+
     try {
       commandParser = conf.getClass(COMMAND_PARSER_KEY, COMMAND_PARSER_DEFAULT, AuditCommandParser.class)
           .getConstructor().newInstance();
@@ -183,10 +205,23 @@ public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text, UserCo
       throw new IOException("Exception encountered while instantiating the command parser", e);
     }
     commandParser.initialize(conf);
+
+    isTargetUgi = new Function<String, Boolean>() {
+      @Override
+      public Boolean apply(String input) {
+        return targetUgi != null && targetUgi.equals(input);
+      }
+    };
     relativeToAbsoluteTimestamp = new Function<Long, Long>() {
       @Override
       public Long apply(Long input) {
         return startTimestampMs + Math.round(input / rateFactor);
+      }
+    };
+    targetRelativeToAbsoluteTimestamp = new Function<Long, Long>() {
+      @Override
+      public Long apply(Long input) {
+        return startTimestampMs + Math.round(input / targetUgiRate);
       }
     };
 
@@ -215,7 +250,11 @@ public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text, UserCo
   @Override
   public void map(LongWritable lineNum, Text inputLine, Mapper.Context context)
       throws IOException, InterruptedException {
-    AuditReplayCommand cmd = commandParser.parse(inputLine, relativeToAbsoluteTimestamp);
+    AuditReplayCommand cmd =
+            targetUgi == null
+            ? commandParser.parse(inputLine, relativeToAbsoluteTimestamp)
+            : commandParser.parse(
+                    inputLine, isTargetUgi, relativeToAbsoluteTimestamp, targetRelativeToAbsoluteTimestamp);
     long delay = cmd.getDelay(TimeUnit.MILLISECONDS);
     // Prevent from loading too many elements into memory all at once
     if (delay > MAX_READAHEAD_MS) {

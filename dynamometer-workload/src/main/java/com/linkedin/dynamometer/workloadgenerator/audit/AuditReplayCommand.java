@@ -34,6 +34,7 @@ class AuditReplayCommand implements Delayed {
   private String src;
   private String dest;
   private String sourceIP;
+  private boolean isTargeted;
 
   AuditReplayCommand(long absoluteTimestamp, String ugi, String command, String src, String dest, String sourceIP) {
     this.absoluteTimestamp = absoluteTimestamp;
@@ -42,6 +43,18 @@ class AuditReplayCommand implements Delayed {
     this.src = src;
     this.dest = dest;
     this.sourceIP = sourceIP;
+    this.isTargeted = false;
+  }
+
+  AuditReplayCommand(long absoluteTimestamp, String ugi, String command, String src, String dest, String sourceIP,
+                     boolean isTargeted) {
+    this.absoluteTimestamp = absoluteTimestamp;
+    this.ugi = ugi;
+    this.command = command;
+    this.src = src;
+    this.dest = dest;
+    this.sourceIP = sourceIP;
+    this.isTargeted = isTargeted;
   }
 
   long getAbsoluteTimestamp() {
@@ -77,6 +90,8 @@ class AuditReplayCommand implements Delayed {
   String getSourceIP() {
     return sourceIP;
   }
+
+  boolean isTargeted() { return isTargeted; }
 
   @Override
   public long getDelay(TimeUnit unit) {

@@ -48,4 +48,18 @@ public class AuditLogHiveTableParser implements AuditCommandParser {
     return new AuditReplayCommand(absoluteTimestamp, fields[1], fields[2], fields[3], fields[4], fields[5]);
   }
 
+  @Override
+  public AuditReplayCommand parse(
+          Text inputLine,
+          Function<String, Boolean> isTargetUgi,
+          Function<Long, Long> relativeToAbsolute,
+          Function<Long, Long> ugiRelativeToAbsolute
+  ) throws IOException {
+    String[] fields = inputLine.toString().split(FIELD_SEPARATOR);
+    boolean isTarget = isTargetUgi.apply(fields[1]);
+    long absoluteTimestamp = isTarget
+            ? ugiRelativeToAbsolute.apply(Long.parseLong(fields[0]))
+            : relativeToAbsolute.apply(Long.parseLong(fields[0]));
+    return new AuditReplayCommand(absoluteTimestamp, fields[1], fields[2], fields[3], fields[4], fields[5], isTarget);
+  }
 }

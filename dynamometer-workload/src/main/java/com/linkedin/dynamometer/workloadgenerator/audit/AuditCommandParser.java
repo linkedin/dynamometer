@@ -36,4 +36,21 @@ public interface AuditCommandParser {
    */
   AuditReplayCommand parse(Text inputLine, Function<Long, Long> relativeToAbsolute) throws IOException;
 
+  /**
+   * Convert a line of input into an {@link AuditReplayCommand}.
+   * Since {@link AuditReplayCommand}s store absolute timestamps, relativeToAbsolute
+   * can be used to convert relative timestamps (i.e., milliseconds elapsed between
+   * the start of the audit log and this command) into absolute timestamps.
+   * @param inputLine Single input line to convert.
+   * @param relativeToAbsolute Function converting relative timestamps (in milliseconds)
+   *                           to absolute timestamps (in milliseconds).
+   * @param isTargetUgi Function to determine whether the input record is from a target ugi
+   * @return A command representing the input line.
+   */
+  AuditReplayCommand parse(
+          Text inputLine,
+          Function<String, Boolean> isTargetUgi,
+          Function<Long, Long> relativeToAbsolute,
+          Function<Long, Long> ugiRelativeToAbsolute
+  ) throws IOException;
 }
