@@ -9,12 +9,15 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.Sets;
 import com.linkedin.dynamometer.workloadgenerator.audit.AuditLogDirectParser;
 import com.linkedin.dynamometer.workloadgenerator.audit.AuditReplayMapper;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -152,8 +155,6 @@ public class TestDynamometerInfra {
       fail("Unable to execute tar to expand Hadoop binary");
     }
 
-    conf.setBoolean(YarnConfiguration.YARN_MINICLUSTER_FIXED_PORTS, true);
-    conf.setBoolean(YarnConfiguration.YARN_MINICLUSTER_USE_RPC, true);
     conf.setInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, 128);
     conf.setBoolean(YarnConfiguration.NODE_LABELS_ENABLED, true);
     for (String q : new String[] { "root", "root.default" } ) {
@@ -181,6 +182,20 @@ public class TestDynamometerInfra {
     FileSystem.setDefaultUri(conf, miniDFSCluster.getURI());
     FileSystem.setDefaultUri(yarnConf, miniDFSCluster.getURI());
     fs = miniDFSCluster.getFileSystem();
+
+    URL url = Thread.currentThread().getContextClassLoader().getResource("yarn-site.xml");
+    if (url == null) {
+      throw new RuntimeException("Could not find 'yarn-site.xml' dummy file in classpath");
+    }
+    yarnConf.set(YarnConfiguration.YARN_APPLICATION_CLASSPATH, new File(url.getPath()).getParent());
+    // Write the XML to a buffer before writing to the file, since the XML dump can cause the
+    // yarn-site.xml file to be read
+    try (ByteArrayOutputStream bytesOut = new ByteArrayOutputStream()) {
+      yarnConf.writeXml(bytesOut);
+      try (OutputStream fileOut = new FileOutputStream(new File(url.getPath()))) {
+        fileOut.write(bytesOut.toByteArray());
+      }
+    }
 
     yarnClient = YarnClient.createYarnClient();
     yarnClient.init(new Configuration(yarnConf));
