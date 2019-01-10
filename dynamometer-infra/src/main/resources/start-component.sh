@@ -96,7 +96,7 @@ export HADOOP_CONF_DIR=${confDir}
 export YARN_CONF_DIR=${confDir}
 export HADOOP_LOG_DIR=${logDir}
 export HADOOP_PID_DIR=${pidDir}
-export HADOOP_CLASSPATH="$extraClasspathDir"
+export HADOOP_CLASSPATH="`pwd`/dependencies/*:$extraClasspathDir"
 echo "Environment variables are set as:"
 echo "(note that this doesn't include changes made by hadoop-env.sh)"
 printenv
@@ -179,10 +179,9 @@ if [ "$component" = "datanode" ]; then
 EOF
 
   echo "Executing the following:"
-  printf "${HADOOP_HOME}/bin/hadoop jar dynamometer.jar com.linkedin.dynamometer.SimulatedDataNodes "
+  printf "${HADOOP_HOME}/bin/hadoop com.linkedin.dynamometer.SimulatedDataNodes "
   printf "$DN_ADDITIONAL_ARGS $datanodeClusterConfigs\n"
-  ${HADOOP_HOME}/bin/hadoop jar dynamometer.jar com.linkedin.dynamometer.SimulatedDataNodes \
-    $DN_ADDITIONAL_ARGS $datanodeClusterConfigs &
+  ${HADOOP_HOME}/bin/hadoop com.linkedin.dynamometer.SimulatedDataNodes $DN_ADDITIONAL_ARGS $datanodeClusterConfigs &
   launchSuccess="$?"
   componentPID="$!"
   if [[ ${launchSuccess} -ne 0 ]]; then
@@ -245,9 +244,6 @@ EOF
   ln -snf "`pwd`/$fsImageMD5File" "$nameDir/current/$fsImageMD5File"
   ln -snf "`pwd`/VERSION" "$nameDir/current/VERSION"
   chmod 700 "$nameDir/current/"*
-
-  # To be able to use the custom block placement policy and the AllowAllImpersonationProvider
-  export HADOOP_CLASSPATH="`pwd`/dynamometer.jar:$HADOOP_CLASSPATH"
 
  read -r -d '' namenodeConfigs <<EOF
   -D fs.defaultFS=hdfs://${nnHostname}:${nnRpcPort}

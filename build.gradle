@@ -51,7 +51,7 @@ subprojects {
   apply plugin: 'idea'
   apply plugin: 'license'
 
-  sourceCompatibility = 1.7
+  sourceCompatibility = 1.8
 
   license {
     header rootProject.file('license_header')
