@@ -188,8 +188,9 @@ public class TestDynamometerInfra {
       throw new RuntimeException("Could not find 'yarn-site.xml' dummy file in classpath");
     }
     yarnConf.set(YarnConfiguration.YARN_APPLICATION_CLASSPATH, new File(url.getPath()).getParent());
-    // Write the XML to a buffer before writing to the file, since the XML dump can cause the
-    // yarn-site.xml file to be read
+    // Write the XML to a buffer before writing to the file. writeXml() can trigger a read of the existing
+    // yarn-site.xml, so writing directly could trigger a read of the file while it is in an inconsistent state
+    // (partially written)
     try (ByteArrayOutputStream bytesOut = new ByteArrayOutputStream()) {
       yarnConf.writeXml(bytesOut);
       try (OutputStream fileOut = new FileOutputStream(new File(url.getPath()))) {
