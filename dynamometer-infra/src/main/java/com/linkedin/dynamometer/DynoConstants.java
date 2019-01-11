@@ -39,8 +39,8 @@ public class DynoConstants {
   public static final DynoResource FS_IMAGE_MD5 = new DynoResource("FS_IMAGE_MD5", FILE, null);
   // Resource for the VERSION file accompanying the file system image
   public static final DynoResource VERSION = new DynoResource("VERSION", FILE, "VERSION");
-  // Resource for the JAR file containing all of the Dynamometer Java code
-  public static final DynoResource DYNO_JAR = new DynoResource("DYNO_JAR", FILE, "dynamometer.jar");
+  // Resource for the archive containing all dependencies
+  public static final DynoResource DYNO_DEPENDENCIES = new DynoResource("DYNO_DEPS", ARCHIVE, "dependencies");
 
   // Environment variable which will contain the location of the directory
   // which holds all of the block files for the DataNodes

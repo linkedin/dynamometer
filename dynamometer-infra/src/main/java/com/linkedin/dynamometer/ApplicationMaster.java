@@ -689,7 +689,7 @@ public class ApplicationMaster {
       addAsLocalResourceFromEnv(DynoConstants.START_SCRIPT, localResources, envs);
       addAsLocalResourceFromEnv(DynoConstants.HADOOP_BINARY, localResources, envs);
       addAsLocalResourceFromEnv(DynoConstants.VERSION, localResources, envs);
-      addAsLocalResourceFromEnv(DynoConstants.DYNO_JAR, localResources, envs);
+      addAsLocalResourceFromEnv(DynoConstants.DYNO_DEPENDENCIES, localResources, envs);
       if (isNameNodeLauncher) {
         addAsLocalResourceFromEnv(DynoConstants.FS_IMAGE, localResources, envs);
         addAsLocalResourceFromEnv(DynoConstants.FS_IMAGE_MD5, localResources, envs);
