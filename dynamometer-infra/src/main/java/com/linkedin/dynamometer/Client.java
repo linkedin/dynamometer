@@ -37,6 +37,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+
+import com.linkedin.dynamometer.workloadgenerator.audit.AuditReplayReducer;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.GnuParser;
@@ -145,6 +147,7 @@ public class Client extends Configured implements Tool {
   public static final String TOKEN_FILE_LOCATION_ARG = "token_file_location";
   public static final String WORKLOAD_REPLAY_ENABLE_ARG = "workload_replay_enable";
   public static final String WORKLOAD_INPUT_PATH_ARG = "workload_input_path";
+  public static final String WORKLOAD_OUTPUT_PATH_ARG = "workload_output_path";
   public static final String WORKLOAD_THREADS_PER_MAPPER_ARG = "workload_threads_per_mapper";
   public static final String WORKLOAD_START_DELAY_ARG = "workload_start_delay";
   public static final String WORKLOAD_RATE_FACTOR_ARG = "workload_rate_factor";
@@ -205,6 +208,8 @@ public class Client extends Configured implements Tool {
   private volatile Job workloadJob;
   // The input path for the workload job.
   private String workloadInputPath = "";
+  // The output path for the workload job.
+  private String workloadOutputPath = "";
   // The number of threads to use per mapper for the workload job.
   private int workloadThreadsPerMapper;
   // The startup delay for the workload job.
@@ -409,6 +414,7 @@ public class Client extends Configured implements Tool {
       }
       launchWorkloadJob = true;
       workloadInputPath = cliParser.getOptionValue(WORKLOAD_INPUT_PATH_ARG);
+      workloadOutputPath = cliParser.getOptionValue(WORKLOAD_OUTPUT_PATH_ARG);
       workloadThreadsPerMapper = Integer.parseInt(cliParser.getOptionValue(WORKLOAD_THREADS_PER_MAPPER_ARG,
           String.valueOf(AuditReplayMapper.NUM_THREADS_DEFAULT)));
       workloadRateFactor = Double.parseDouble(cliParser.getOptionValue(WORKLOAD_RATE_FACTOR_ARG,
@@ -912,13 +918,16 @@ public class Client extends Configured implements Tool {
       long workloadStartTime = System.currentTimeMillis() + workloadStartDelayMs;
       Configuration workloadConf = new Configuration(getConf());
       workloadConf.set(AuditReplayMapper.INPUT_PATH_KEY, workloadInputPath);
+      if (workloadOutputPath != null) {
+        workloadConf.set(AuditReplayReducer.OUTPUT_PATH_KEY, workloadOutputPath);
+      }
       workloadConf.setInt(AuditReplayMapper.NUM_THREADS_KEY, workloadThreadsPerMapper);
       workloadConf.setDouble(AuditReplayMapper.RATE_FACTOR_KEY, workloadRateFactor);
       for (Map.Entry<String, String> configPair : workloadExtraConfigs.entrySet()) {
         workloadConf.set(configPair.getKey(), configPair.getValue());
       }
       workloadJob = WorkloadDriver.getJobForSubmission(workloadConf, nameNodeURI.toString(),
-          workloadStartTime, AuditReplayMapper.class);
+          workloadStartTime, AuditReplayMapper.class, AuditReplayReducer.class);
       workloadJob.submit();
       while (!isCompleted(infraAppState) && !isCompleted(workloadAppState)) {
         workloadJob.monitorAndPrintJob();

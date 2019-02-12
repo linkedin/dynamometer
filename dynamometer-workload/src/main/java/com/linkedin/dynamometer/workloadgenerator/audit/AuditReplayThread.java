@@ -25,6 +25,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.hdfs.protocol.HdfsFileStatus;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.counters.GenericCounter;
@@ -53,6 +55,7 @@ public class AuditReplayThread extends Thread {
   private ConcurrentMap<String, FileSystem> fsCache;
   private URI namenodeUri;
   private UserGroupInformation loginUser;
+  private Mapper.Context mapperContext;
   private Configuration mapperConf;
   // If any exception is encountered it will be stored here
   private Exception exception;
@@ -69,6 +72,7 @@ public class AuditReplayThread extends Thread {
     commandQueue = queue;
     this.fsCache = fsCache;
     loginUser = UserGroupInformation.getLoginUser();
+    this.mapperContext = mapperContext;
     mapperConf = mapperContext.getConfiguration();
     namenodeUri = URI.create(mapperConf.get(WorkloadDriver.NN_URI));
     startTimestampMs = mapperConf.getLong(WorkloadDriver.START_TIMESTAMP_MS, -1);
@@ -254,7 +258,16 @@ public class AuditReplayThread extends Thread {
           fs.concat(new Path(src), dsts.toArray(new Path[] {}));
           break;
       }
+
+      String key = command.getSimpleUgi() + "_" + replayCommand.getType().toString();
       long latency = System.currentTimeMillis() - startTime;
+
+//      try {
+//        mapperContext.write(new Text(key), new LongWritable(latency));
+//      } catch (InterruptedException|IOException e) {
+//        throw new IOException("Error writing to context", e);
+//      }
+
       switch (replayCommand.getType()) {
         case WRITE:
           replayCountersMap.get(REPLAYCOUNTERS.TOTALWRITECOMMANDLATENCY).increment(latency);

@@ -4,10 +4,8 @@
  */
 package com.linkedin.dynamometer.workloadgenerator;
 
-import com.linkedin.dynamometer.workloadgenerator.audit.AuditCommandParser;
-import com.linkedin.dynamometer.workloadgenerator.audit.AuditLogDirectParser;
-import com.linkedin.dynamometer.workloadgenerator.audit.AuditLogHiveTableParser;
-import com.linkedin.dynamometer.workloadgenerator.audit.AuditReplayMapper;
+import com.linkedin.dynamometer.workloadgenerator.audit.*;
+
 import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
@@ -61,17 +59,24 @@ public class TestWorkloadGenerator {
   public void testAuditWorkloadDirectParser() throws Exception {
     String workloadInputPath =
         TestWorkloadGenerator.class.getClassLoader().getResource("audit_trace_direct").toString();
+    String auditOutputPath = "/reducer_output/trace_output_direct";
     conf.set(AuditReplayMapper.INPUT_PATH_KEY, workloadInputPath);
+    conf.set(AuditReplayReducer.OUTPUT_PATH_KEY, auditOutputPath);
     conf.setLong(AuditLogDirectParser.AUDIT_START_TIMESTAMP_KEY, 60*1000);
     testAuditWorkload();
+    assertTrue(dfs.exists(new Path(auditOutputPath)));
   }
 
   @Test
   public void testAuditWorkloadHiveParser() throws Exception {
-    String workloadInputPath = TestWorkloadGenerator.class.getClassLoader().getResource("audit_trace_hive").toString();
+    String workloadInputPath =
+        TestWorkloadGenerator.class.getClassLoader().getResource("audit_trace_hive").toString();
+    String auditOutputPath = "/reducer_output/trace_output_hive";
     conf.set(AuditReplayMapper.INPUT_PATH_KEY, workloadInputPath);
+    conf.set(AuditReplayReducer.OUTPUT_PATH_KEY, auditOutputPath);
     conf.setClass(AuditReplayMapper.COMMAND_PARSER_KEY, AuditLogHiveTableParser.class, AuditCommandParser.class);
     testAuditWorkload();
+    assertTrue(dfs.exists(new Path(auditOutputPath)));
   }
 
   /**
@@ -96,7 +101,7 @@ public class TestWorkloadGenerator {
   private void testAuditWorkload() throws Exception {
     long workloadStartTime = System.currentTimeMillis() + 10000;
     Job workloadJob = WorkloadDriver.getJobForSubmission(conf, dfs.getUri().toString(),
-        workloadStartTime, AuditReplayMapper.class);
+        workloadStartTime, AuditReplayMapper.class, AuditReplayReducer.class);
     boolean success = workloadJob.waitForCompletion(true);
     assertTrue("workload job should succeed", success);
     Counters counters = workloadJob.getCounters();

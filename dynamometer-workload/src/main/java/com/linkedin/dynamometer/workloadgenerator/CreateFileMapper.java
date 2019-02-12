@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
  *       in which to create files.</li>
  * </ul>
  */
-public class CreateFileMapper extends WorkloadMapper<LongWritable, NullWritable> {
+public class CreateFileMapper extends WorkloadMapper<LongWritable, NullWritable, NullWritable, NullWritable> {
 
   public static final String FILE_PARENT_PATH_KEY = "createfile.file-parent-path";
   public static final String FILE_PARENT_PATH_DEFAULT = "/tmp/createFileMapper";

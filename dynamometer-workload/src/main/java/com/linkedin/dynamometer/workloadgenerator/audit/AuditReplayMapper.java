@@ -55,7 +55,7 @@ import static com.linkedin.dynamometer.workloadgenerator.audit.AuditReplayMapper
  * replayed. For example, a rate factor of 2 would make the replay occur twice as fast, and a rate
  * factor of 0.5 would make it occur half as fast.
  */
-public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text> {
+public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text, Text, LongWritable> {
 
   public static final String INPUT_PATH_KEY = "auditreplay.input-path";
   public static final String NUM_THREADS_KEY = "auditreplay.num-threads";
