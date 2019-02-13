@@ -12,6 +12,7 @@ import com.google.common.base.Splitter;
 import com.google.common.base.StandardSystemProperty;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
+import com.linkedin.dynamometer.workloadgenerator.WorkloadReducer;
 import com.linkedin.dynamometer.workloadgenerator.audit.AuditReplayMapper;
 import com.linkedin.dynamometer.workloadgenerator.WorkloadDriver;
 import java.io.File;
@@ -208,7 +209,7 @@ public class Client extends Configured implements Tool {
   private volatile Job workloadJob;
   // The input path for the workload job.
   private String workloadInputPath = "";
-  // The output path for the workload job.
+  // The output path for the workload job metric results.
   private String workloadOutputPath = "";
   // The number of threads to use per mapper for the workload job.
   private int workloadThreadsPerMapper;
@@ -918,16 +919,17 @@ public class Client extends Configured implements Tool {
       long workloadStartTime = System.currentTimeMillis() + workloadStartDelayMs;
       Configuration workloadConf = new Configuration(getConf());
       workloadConf.set(AuditReplayMapper.INPUT_PATH_KEY, workloadInputPath);
-      if (workloadOutputPath != null) {
-        workloadConf.set(AuditReplayReducer.OUTPUT_PATH_KEY, workloadOutputPath);
-      }
       workloadConf.setInt(AuditReplayMapper.NUM_THREADS_KEY, workloadThreadsPerMapper);
       workloadConf.setDouble(AuditReplayMapper.RATE_FACTOR_KEY, workloadRateFactor);
       for (Map.Entry<String, String> configPair : workloadExtraConfigs.entrySet()) {
         workloadConf.set(configPair.getKey(), configPair.getValue());
       }
+      Class <? extends WorkloadReducer> reducerClass = null;
+      if (workloadOutputPath != null) {
+        reducerClass = AuditReplayReducer.class;
+      }
       workloadJob = WorkloadDriver.getJobForSubmission(workloadConf, nameNodeURI.toString(),
-          workloadStartTime, AuditReplayMapper.class, AuditReplayReducer.class);
+          workloadStartTime, AuditReplayMapper.class, reducerClass);
       workloadJob.submit();
       while (!isCompleted(infraAppState) && !isCompleted(workloadAppState)) {
         workloadJob.monitorAndPrintJob();

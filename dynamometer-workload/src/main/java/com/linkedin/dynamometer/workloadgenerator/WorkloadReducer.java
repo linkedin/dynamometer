@@ -14,19 +14,5 @@ public abstract class WorkloadReducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT>
     return NullOutputFormat.class;
   }
 
-  /**
-   * Get the description of the behavior of this reducer.
-   */
-  public abstract String getDescription();
-
-  /**
-   * Get a list of the description of each configuration that this mapper accepts.
-   */
-  public abstract List<String> getConfigDescriptions();
-
-  /**
-   * Verify that the provided configuration contains all configurations
-   * required by this mapper.
-   */
   public abstract boolean verifyConfigurations(Configuration conf);
 }

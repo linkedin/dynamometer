@@ -262,11 +262,11 @@ public class AuditReplayThread extends Thread {
       String key = command.getSimpleUgi() + "_" + replayCommand.getType().toString();
       long latency = System.currentTimeMillis() - startTime;
 
-//      try {
-//        mapperContext.write(new Text(key), new LongWritable(latency));
-//      } catch (InterruptedException|IOException e) {
-//        throw new IOException("Error writing to context", e);
-//      }
+      try {
+        mapperContext.write(new Text(key), new LongWritable(latency));
+      } catch (InterruptedException|IOException e) {
+        throw new IOException("Error writing to context", e);
+      }
 
       switch (replayCommand.getType()) {
         case WRITE:

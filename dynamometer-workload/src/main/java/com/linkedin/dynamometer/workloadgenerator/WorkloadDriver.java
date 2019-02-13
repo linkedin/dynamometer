@@ -10,7 +10,6 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
-import com.linkedin.dynamometer.workloadgenerator.audit.AuditReplayReducer;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.HelpFormatter;
@@ -19,21 +18,16 @@ import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.OptionGroup;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
-import org.apache.commons.lang.ObjectUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.MRJobConfig;
-import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
@@ -76,7 +70,7 @@ public class WorkloadDriver extends Configured implements Tool {
     options.addOption(mapperClassOption);
     Option reducerClassOption = OptionBuilder.withArgName("Reducer ClassName").hasArg().withDescription(
         "Class name of the reducer (optional); must be a Reducer subclass. Reducers supported currently: \n" +
-            "1. AuditReplayReducer \nFully specificed class names are also supported.")
+            "1. AuditReplayReducer \nFully specified class names are also supported.")
         .create(REDUCER_CLASS_NAME);
     options.addOption(reducerClassOption);
 
@@ -116,10 +110,13 @@ public class WorkloadDriver extends Configured implements Tool {
       System.err.println(getMapperUsageInfo(cli.getOptionValue(MAPPER_CLASS_NAME)));
       return 1;
     }
-
     Class<? extends WorkloadReducer> reducerClass = null;
     if (cli.getOptionValue(REDUCER_CLASS_NAME) != null) {
       reducerClass = getReducerClass(cli.getOptionValue(REDUCER_CLASS_NAME));
+      if (!reducerClass.newInstance().verifyConfigurations(getConf())) {
+        System.err.println("Incorrect config for " + reducerClass.getName());
+        return 1;
+      }
     }
 
     Job job = getJobForSubmission(getConf(), nnURI, startTimestampMs, mapperClass, reducerClass);
@@ -208,5 +205,4 @@ public class WorkloadDriver extends Configured implements Tool {
 
     return builder.toString();
   }
-
 }

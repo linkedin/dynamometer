@@ -21,16 +21,6 @@ public class AuditReplayReducer extends
   }
 
   @Override
-  public String getDescription() {
-    return "This reducer aggregates latency data.";
-  }
-
-  @Override
-  public List<String> getConfigDescriptions() {
-    return Lists.newArrayList("default config");
-  }
-
-  @Override
   public boolean verifyConfigurations(Configuration conf) {
     return conf.get(OUTPUT_PATH_KEY) != null;
   }
