@@ -11,7 +11,7 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.InputSplit;
 
 
-public class VirtualInputSplit<K, V> extends InputSplit implements Writable {
+public class VirtualInputSplit extends InputSplit implements Writable {
 
   @Override
   public void write(DataOutput out) throws IOException {
