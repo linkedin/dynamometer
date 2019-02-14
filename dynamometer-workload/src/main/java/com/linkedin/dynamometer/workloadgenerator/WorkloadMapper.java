@@ -8,7 +8,9 @@ import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.InputFormat;
+import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 
 
 /**
@@ -21,7 +23,7 @@ public abstract class WorkloadMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends M
   /**
    * Return the input class to be used by this mapper.
    */
-  public Class<? extends InputFormat> getInputFormat(Configuration conf) {
+  public static Class<? extends InputFormat> getInputFormat(Configuration conf) {
     return TimedInputFormat.class;
   }
 
@@ -41,4 +43,13 @@ public abstract class WorkloadMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends M
    */
   public abstract boolean verifyConfigurations(Configuration conf);
 
+  /**
+   * Get the associated Reducer class to run on the outputted kv pairs.
+   */
+  public void configureJob(Job job) {
+    job.setNumReduceTasks(0);
+    job.setOutputKeyClass(NullWritable.class);
+    job.setOutputValueClass(NullWritable.class);
+    job.setOutputFormatClass(NullOutputFormat.class);
+  }
 }

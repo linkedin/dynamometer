@@ -62,6 +62,9 @@ public class AuditReplayThread extends Thread {
   private long startTimestampMs;
   private boolean createBlocks;
 
+  private Text userCommandKey = new Text();
+  private LongWritable userCommandLatency = new LongWritable();
+
   // Counters are not thread-safe so we store a local mapping in our thread
   // and merge them all together at the end.
   private Map<REPLAYCOUNTERS, Counter> replayCountersMap = new HashMap<>();
@@ -259,11 +262,12 @@ public class AuditReplayThread extends Thread {
           break;
       }
 
-      String key = command.getSimpleUgi() + "_" + replayCommand.getType().toString();
+      userCommandKey.set(command.getSimpleUgi() + "_" + replayCommand.getType().toString());
       long latency = System.currentTimeMillis() - startTime;
+      userCommandLatency.set(latency);
 
       try {
-        mapperContext.write(new Text(key), new LongWritable(latency));
+        mapperContext.write(userCommandKey, userCommandLatency);
       } catch (InterruptedException|IOException e) {
         throw new IOException("Error writing to context", e);
       }

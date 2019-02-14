@@ -12,7 +12,6 @@ import com.google.common.base.Splitter;
 import com.google.common.base.StandardSystemProperty;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
-import com.linkedin.dynamometer.workloadgenerator.WorkloadReducer;
 import com.linkedin.dynamometer.workloadgenerator.audit.AuditReplayMapper;
 import com.linkedin.dynamometer.workloadgenerator.WorkloadDriver;
 import java.io.File;
@@ -39,7 +38,6 @@ import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import com.linkedin.dynamometer.workloadgenerator.audit.AuditReplayReducer;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.GnuParser;
@@ -924,12 +922,8 @@ public class Client extends Configured implements Tool {
       for (Map.Entry<String, String> configPair : workloadExtraConfigs.entrySet()) {
         workloadConf.set(configPair.getKey(), configPair.getValue());
       }
-      Class <? extends WorkloadReducer> reducerClass = null;
-      if (workloadOutputPath != null) {
-        reducerClass = AuditReplayReducer.class;
-      }
       workloadJob = WorkloadDriver.getJobForSubmission(workloadConf, nameNodeURI.toString(),
-          workloadStartTime, AuditReplayMapper.class, reducerClass);
+          workloadStartTime, AuditReplayMapper.class);
       workloadJob.submit();
       while (!isCompleted(infraAppState) && !isCompleted(workloadAppState)) {
         workloadJob.monitorAndPrintJob();

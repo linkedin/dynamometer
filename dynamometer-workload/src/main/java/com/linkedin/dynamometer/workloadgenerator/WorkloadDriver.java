@@ -22,11 +22,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
-import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.NullWritable;
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.MRJobConfig;
-import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
@@ -47,7 +43,6 @@ public class WorkloadDriver extends Configured implements Tool {
   public static final String START_TIME_OFFSET_DEFAULT = "1m";
   public static final String NN_URI = "nn_uri";
   public static final String MAPPER_CLASS_NAME = "mapper_class_name";
-  public static final String REDUCER_CLASS_NAME = "reducer_class_name";
 
   public int run(String[] args) throws Exception {
     Option helpOption = new Option("h", "help", false, "Shows this message. Additionally specify the " + MAPPER_CLASS_NAME
@@ -68,11 +63,6 @@ public class WorkloadDriver extends Configured implements Tool {
             "1. AuditReplayMapper \n" + "2. CreateFileMapper \nFully specified class names are also supported.")
         .isRequired().create(MAPPER_CLASS_NAME);
     options.addOption(mapperClassOption);
-    Option reducerClassOption = OptionBuilder.withArgName("Reducer ClassName").hasArg().withDescription(
-        "Class name of the reducer (optional); must be a Reducer subclass. Reducers supported currently: \n" +
-            "1. AuditReplayReducer \nFully specified class names are also supported.")
-        .create(REDUCER_CLASS_NAME);
-    options.addOption(reducerClassOption);
 
     Options helpOptions = new Options();
     helpOptions.addOption(helpOption);
@@ -110,23 +100,15 @@ public class WorkloadDriver extends Configured implements Tool {
       System.err.println(getMapperUsageInfo(cli.getOptionValue(MAPPER_CLASS_NAME)));
       return 1;
     }
-    Class<? extends WorkloadReducer> reducerClass = null;
-    if (cli.getOptionValue(REDUCER_CLASS_NAME) != null) {
-      reducerClass = getReducerClass(cli.getOptionValue(REDUCER_CLASS_NAME));
-      if (!reducerClass.newInstance().verifyConfigurations(getConf())) {
-        System.err.println("Incorrect config for " + reducerClass.getName());
-        return 1;
-      }
-    }
 
-    Job job = getJobForSubmission(getConf(), nnURI, startTimestampMs, mapperClass, reducerClass);
+    Job job = getJobForSubmission(getConf(), nnURI, startTimestampMs, mapperClass);
 
     boolean success = job.waitForCompletion(true);
     return success ? 0 : 1;
   }
 
   public static Job getJobForSubmission(Configuration baseConf, String nnURI, long startTimestampMs,
-      Class<? extends WorkloadMapper> mapperClass, Class<? extends WorkloadReducer> reducerClass) throws IOException, ClassNotFoundException,
+      Class<? extends WorkloadMapper> mapperClass) throws IOException, ClassNotFoundException,
       InstantiationException, IllegalAccessException {
     Configuration conf = new Configuration(baseConf);
     conf.set(NN_URI, nnURI);
@@ -139,23 +121,8 @@ public class WorkloadDriver extends Configured implements Tool {
     Job job = Job.getInstance(conf, "Dynamometer Workload Driver");
     job.setJarByClass(mapperClass);
     job.setMapperClass(mapperClass);
-    job.setInputFormatClass(mapperClass.newInstance().getInputFormat(conf));
-    if (reducerClass == null) {
-      job.setNumReduceTasks(0);
-      job.setMapOutputKeyClass(NullWritable.class);
-      job.setMapOutputValueClass(NullWritable.class);
-      job.setOutputKeyClass(NullWritable.class);
-      job.setOutputValueClass(NullWritable.class);
-      job.setOutputFormatClass(NullOutputFormat.class);
-    } else {
-      job.setNumReduceTasks(1);
-      job.setMapOutputKeyClass(Text.class);
-      job.setMapOutputValueClass(LongWritable.class);
-      job.setOutputKeyClass(Text.class);
-      job.setOutputValueClass(LongWritable.class);
-      job.setOutputFormatClass(reducerClass.newInstance().getOutputFormat(conf));
-      job.setReducerClass(reducerClass);
-    }
+
+    mapperClass.newInstance().configureJob(job);
 
     return job;
   }
@@ -175,18 +142,6 @@ public class WorkloadDriver extends Configured implements Tool {
           WorkloadMapper.class.getCanonicalName());
     }
     return (Class<? extends WorkloadMapper>) mapperClass;
-  }
-
-  private Class<? extends WorkloadReducer> getReducerClass(String className) throws ClassNotFoundException {
-    if (!className.contains(".")) {
-      className = WorkloadDriver.class.getPackage().getName() + "." + className;
-    }
-    Class<?> mapperClass = getConf().getClassByName(className);
-    if (!WorkloadReducer.class.isAssignableFrom(mapperClass)) {
-      throw new IllegalArgumentException(className + " is not a subclass of " +
-          WorkloadReducer.class.getCanonicalName());
-    }
-    return (Class<? extends WorkloadReducer>) mapperClass;
   }
 
   private String getMapperUsageInfo(String mapperClassName) throws ClassNotFoundException,

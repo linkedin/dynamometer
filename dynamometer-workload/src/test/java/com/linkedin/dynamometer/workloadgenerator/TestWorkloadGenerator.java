@@ -4,9 +4,13 @@
  */
 package com.linkedin.dynamometer.workloadgenerator;
 
-import com.linkedin.dynamometer.workloadgenerator.audit.*;
-
 import java.io.IOException;
+
+import com.linkedin.dynamometer.workloadgenerator.audit.AuditCommandParser;
+import com.linkedin.dynamometer.workloadgenerator.audit.AuditLogDirectParser;
+import com.linkedin.dynamometer.workloadgenerator.audit.AuditLogHiveTableParser;
+import com.linkedin.dynamometer.workloadgenerator.audit.AuditReplayMapper;
+import com.linkedin.dynamometer.workloadgenerator.audit.AuditReplayReducer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
@@ -56,32 +60,14 @@ public class TestWorkloadGenerator {
   }
 
   @Test
-  public void testAuditWorkloadDirectParser() throws Exception {
-    String workloadInputPath =
-        TestWorkloadGenerator.class.getClassLoader().getResource("audit_trace_direct").toString();
-    conf.set(AuditReplayMapper.INPUT_PATH_KEY, workloadInputPath);
-    conf.setLong(AuditLogDirectParser.AUDIT_START_TIMESTAMP_KEY, 60*1000);
-    testAuditWorkloadWithReducer(null);
-  }
-
-  @Test
-  public void testAuditWorkloadHiveParser() throws Exception {
-    String workloadInputPath =
-        TestWorkloadGenerator.class.getClassLoader().getResource("audit_trace_hive").toString();
-    conf.set(AuditReplayMapper.INPUT_PATH_KEY, workloadInputPath);
-    conf.setClass(AuditReplayMapper.COMMAND_PARSER_KEY, AuditLogHiveTableParser.class, AuditCommandParser.class);
-    testAuditWorkloadWithReducer(null);
-  }
-
-  @Test
   public void testAuditWorkloadDirectParserWithOutput() throws Exception {
     String workloadInputPath =
         TestWorkloadGenerator.class.getClassLoader().getResource("audit_trace_direct").toString();
     String auditOutputPath = "/reducer_output/trace_output_direct";
     conf.set(AuditReplayMapper.INPUT_PATH_KEY, workloadInputPath);
-    conf.set(AuditReplayReducer.OUTPUT_PATH_KEY, auditOutputPath);
+    conf.set(AuditReplayMapper.OUTPUT_PATH_KEY, auditOutputPath);
     conf.setLong(AuditLogDirectParser.AUDIT_START_TIMESTAMP_KEY, 60*1000);
-    testAuditWorkloadWithReducer(AuditReplayReducer.class);
+    testAuditWorkload();
     assertTrue(dfs.exists(new Path(auditOutputPath)));
   }
 
@@ -91,9 +77,9 @@ public class TestWorkloadGenerator {
         TestWorkloadGenerator.class.getClassLoader().getResource("audit_trace_hive").toString();
     String auditOutputPath = "/reducer_output/trace_output_hive";
     conf.set(AuditReplayMapper.INPUT_PATH_KEY, workloadInputPath);
-    conf.set(AuditReplayReducer.OUTPUT_PATH_KEY, auditOutputPath);
+    conf.set(AuditReplayMapper.OUTPUT_PATH_KEY, auditOutputPath);
     conf.setClass(AuditReplayMapper.COMMAND_PARSER_KEY, AuditLogHiveTableParser.class, AuditCommandParser.class);
-    testAuditWorkloadWithReducer(AuditReplayReducer.class);
+    testAuditWorkload();
     assertTrue(dfs.exists(new Path(auditOutputPath)));
   }
 
@@ -116,10 +102,10 @@ public class TestWorkloadGenerator {
     }
   }
 
-  private void testAuditWorkloadWithReducer(Class <? extends WorkloadReducer> reducerClass) throws Exception {
+  private void testAuditWorkload() throws Exception {
     long workloadStartTime = System.currentTimeMillis() + 10000;
     Job workloadJob = WorkloadDriver.getJobForSubmission(conf, dfs.getUri().toString(),
-        workloadStartTime, AuditReplayMapper.class, reducerClass);
+        workloadStartTime, AuditReplayMapper.class);
     boolean success = workloadJob.waitForCompletion(true);
     assertTrue("workload job should succeed", success);
     Counters counters = workloadJob.getCounters();
