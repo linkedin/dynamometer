@@ -278,6 +278,7 @@ public class TestDynamometerInfra {
               "-" + AMOptions.SHELL_ENV_ARG, "HADOOP_CONF_DIR=" + getHadoopHomeLocation() + "/etc/hadoop",
               "-" + Client.WORKLOAD_REPLAY_ENABLE_ARG,
               "-" + Client.WORKLOAD_INPUT_PATH_ARG, fs.makeQualified(new Path("/tmp/audit_trace_direct")).toString(),
+              "-" + Client.WORKLOAD_OUTPUT_PATH_ARG, fs.makeQualified(new Path("/tmp/trace_output_direct")).toString(),
               "-" + Client.WORKLOAD_THREADS_PER_MAPPER_ARG, "1",
               "-" + Client.WORKLOAD_START_DELAY_ARG, "10s",
               "-" + AMOptions.NAMENODE_ARGS_ARG, "-Ddfs.namenode.safemode.extension=0"

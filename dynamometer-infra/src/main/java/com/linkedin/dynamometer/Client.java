@@ -303,6 +303,7 @@ public class Client extends Configured implements Tool {
     opts.addOption(WORKLOAD_REPLAY_ENABLE_ARG, false, "If specified, this client will additionally launch the workload "
         + "replay job to replay audit logs against the HDFS cluster which is started.");
     opts.addOption(WORKLOAD_INPUT_PATH_ARG, true, "Location of the audit traces to replay (Required for workload)");
+    opts.addOption(WORKLOAD_OUTPUT_PATH_ARG, true, "Location of the metrics output (Required for workload)");
     opts.addOption(WORKLOAD_THREADS_PER_MAPPER_ARG, true, "Number of threads per mapper to use to " +
         "replay the workload. (default " + AuditReplayMapper.NUM_THREADS_DEFAULT + ")");
     opts.addOption(WORKLOAD_START_DELAY_ARG, true, "Delay between launching the Workload MR job and " +
@@ -917,6 +918,7 @@ public class Client extends Configured implements Tool {
       long workloadStartTime = System.currentTimeMillis() + workloadStartDelayMs;
       Configuration workloadConf = new Configuration(getConf());
       workloadConf.set(AuditReplayMapper.INPUT_PATH_KEY, workloadInputPath);
+      workloadConf.set(AuditReplayMapper.OUTPUT_PATH_KEY, workloadOutputPath);
       workloadConf.setInt(AuditReplayMapper.NUM_THREADS_KEY, workloadThreadsPerMapper);
       workloadConf.setDouble(AuditReplayMapper.RATE_FACTOR_KEY, workloadRateFactor);
       for (Map.Entry<String, String> configPair : workloadExtraConfigs.entrySet()) {

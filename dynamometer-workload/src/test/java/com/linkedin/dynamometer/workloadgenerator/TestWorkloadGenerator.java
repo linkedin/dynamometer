@@ -63,7 +63,7 @@ public class TestWorkloadGenerator {
   public void testAuditWorkloadDirectParserWithOutput() throws Exception {
     String workloadInputPath =
         TestWorkloadGenerator.class.getClassLoader().getResource("audit_trace_direct").toString();
-    String auditOutputPath = "/reducer_output/trace_output_direct";
+    String auditOutputPath = "/tmp/trace_output_direct";
     conf.set(AuditReplayMapper.INPUT_PATH_KEY, workloadInputPath);
     conf.set(AuditReplayMapper.OUTPUT_PATH_KEY, auditOutputPath);
     conf.setLong(AuditLogDirectParser.AUDIT_START_TIMESTAMP_KEY, 60*1000);
@@ -75,7 +75,7 @@ public class TestWorkloadGenerator {
   public void testAuditWorkloadHiveParserWithOutput() throws Exception {
     String workloadInputPath =
         TestWorkloadGenerator.class.getClassLoader().getResource("audit_trace_hive").toString();
-    String auditOutputPath = "/reducer_output/trace_output_hive";
+    String auditOutputPath = "/tmp/trace_output_hive";
     conf.set(AuditReplayMapper.INPUT_PATH_KEY, workloadInputPath);
     conf.set(AuditReplayMapper.OUTPUT_PATH_KEY, auditOutputPath);
     conf.setClass(AuditReplayMapper.COMMAND_PARSER_KEY, AuditLogHiveTableParser.class, AuditCommandParser.class);
