@@ -7,7 +7,6 @@ package com.linkedin.dynamometer.workloadgenerator.audit;
 import com.google.common.base.Splitter;
 import com.linkedin.dynamometer.workloadgenerator.WorkloadDriver;
 import java.io.IOException;
-import java.io.InterruptedIOException;
 import java.net.URI;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
@@ -27,7 +26,6 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.hdfs.protocol.HdfsFileStatus;
 import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.counters.GenericCounter;
@@ -66,7 +64,7 @@ public class AuditReplayThread extends Thread {
   // and merge them all together at the end.
   private Map<REPLAYCOUNTERS, Counter> replayCountersMap = new HashMap<>();
   private Map<String, Counter> individualCommandsMap = new HashMap<>();
-  private Map<String, Long> userCommandMap = new HashMap<>();
+  private Map<UserCommandKey, LongWritable> commandLatencyMap = new HashMap<>();
 
   AuditReplayThread(Mapper.Context mapperContext, DelayQueue<AuditReplayCommand> queue,
       ConcurrentMap<String, FileSystem> fsCache) throws IOException {
@@ -104,13 +102,9 @@ public class AuditReplayThread extends Thread {
   }
 
   void drainCommandLatencies(Mapper.Context context) throws IOException {
-    Text outputKey = new Text();
-    LongWritable outputValue = new LongWritable();
-    for (Map.Entry<String, Long> ent : userCommandMap.entrySet()) {
-      outputKey.set(ent.getKey());
-      outputValue.set(ent.getValue());
+    for (Map.Entry<UserCommandKey, LongWritable> ent : commandLatencyMap.entrySet()) {
       try {
-        context.write(outputKey, outputValue);
+        context.write(ent.getKey(), ent.getValue());
       } catch (IOException|InterruptedException e) {
        throw new IOException("Error writing to context", e);
       }
@@ -273,14 +267,12 @@ public class AuditReplayThread extends Thread {
           break;
       }
 
-      String userCommandKey = command.getSimpleUgi() + "_" + replayCommand.getType().toString();
       long latency = System.currentTimeMillis() - startTime;
 
-      if (userCommandMap.containsKey(userCommandKey)) {
-        userCommandMap.put(userCommandKey, userCommandMap.get(userCommandKey) + latency);
-      } else {
-        userCommandMap.put(userCommandKey, latency);
-      }
+      UserCommandKey userCommandKey = new UserCommandKey(command.getSimpleUgi(), replayCommand.getType().toString());
+      commandLatencyMap.putIfAbsent(userCommandKey, new LongWritable(0));
+      LongWritable latencyWritable = commandLatencyMap.get(userCommandKey);
+      latencyWritable.set(latencyWritable.get() + latency);
 
       switch (replayCommand.getType()) {
         case WRITE:

@@ -5,16 +5,15 @@
 package com.linkedin.dynamometer.workloadgenerator.audit;
 
 import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Reducer;
 
 import java.io.IOException;
 
 public class AuditReplayReducer extends
-    Reducer<Text, LongWritable, Text, LongWritable> {
+    Reducer<UserCommandKey, LongWritable, UserCommandKey, LongWritable> {
 
   @Override
-  protected void reduce(Text key, Iterable<LongWritable> values, Context context) throws IOException, InterruptedException {
+  protected void reduce(UserCommandKey key, Iterable<LongWritable> values, Context context) throws IOException, InterruptedException {
     long sum = 0;
     for (LongWritable v : values) {
       sum += v.get();
