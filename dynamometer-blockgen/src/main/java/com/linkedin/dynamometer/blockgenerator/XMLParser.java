@@ -52,6 +52,16 @@ class XMLParser {
    * @return {@code BlockInfo}s for any blocks found.
    */
   List<BlockInfo> parseLine(String line) throws IOException {
+    // Centralized Cache Management compatibility
+    // if CCM feature is open, fsimage xml may include
+    // <directive><id>8963</id><path>/user/some/path</path><replication>3</replication>
+    // <pool>cache_other_pool</pool><expiration><millis>1544454142310</millis><relatilve>false</relatilve></expiration>
+    // these lines need to be filtered
+    if (line.contains("<directive><id>")) {
+      System.out.println("this line is for Centralized Cache Management, ignore, line:" + line);
+      return new ArrayList<>();
+    }
+
     if (line.contains("<inode>")) {
       transitionTo(State.INODE);
     }
