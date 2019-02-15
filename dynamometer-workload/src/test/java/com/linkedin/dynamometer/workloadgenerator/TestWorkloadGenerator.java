@@ -4,12 +4,11 @@
  */
 package com.linkedin.dynamometer.workloadgenerator;
 
-import java.io.IOException;
-
 import com.linkedin.dynamometer.workloadgenerator.audit.AuditCommandParser;
 import com.linkedin.dynamometer.workloadgenerator.audit.AuditLogDirectParser;
 import com.linkedin.dynamometer.workloadgenerator.audit.AuditLogHiveTableParser;
 import com.linkedin.dynamometer.workloadgenerator.audit.AuditReplayMapper;
+import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;

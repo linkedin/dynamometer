@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.HelpFormatter;
@@ -121,7 +120,6 @@ public class WorkloadDriver extends Configured implements Tool {
     Job job = Job.getInstance(conf, "Dynamometer Workload Driver");
     job.setJarByClass(mapperClass);
     job.setMapperClass(mapperClass);
-
     mapperClass.newInstance().configureJob(job);
 
     return job;

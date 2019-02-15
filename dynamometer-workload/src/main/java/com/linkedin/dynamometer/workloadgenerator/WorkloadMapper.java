@@ -19,14 +19,6 @@ import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
  * should override the {@link #getInputFormat(Configuration)} method.
  */
 public abstract class WorkloadMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> {
-
-  /**
-   * Return the input class to be used by this mapper.
-   */
-  public static Class<? extends InputFormat> getInputFormat(Configuration conf) {
-    return TimedInputFormat.class;
-  }
-
   /**
    * Get the description of the behavior of this mapper.
    */
@@ -44,9 +36,11 @@ public abstract class WorkloadMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends M
   public abstract boolean verifyConfigurations(Configuration conf);
 
   /**
-   * Get the associated Reducer class to run on the outputted kv pairs.
+   * Setup input and output formats and optional reducer.
    */
   public void configureJob(Job job) {
+    job.setInputFormatClass(TimedInputFormat.class);
+
     job.setNumReduceTasks(0);
     job.setOutputKeyClass(NullWritable.class);
     job.setOutputValueClass(NullWritable.class);

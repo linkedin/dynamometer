@@ -4,14 +4,12 @@
  */
 package com.linkedin.dynamometer.workloadgenerator.audit;
 
-import com.sun.istack.NotNull;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 
 
