@@ -9,6 +9,7 @@ import com.linkedin.dynamometer.workloadgenerator.audit.AuditLogDirectParser;
 import com.linkedin.dynamometer.workloadgenerator.audit.AuditLogHiveTableParser;
 import com.linkedin.dynamometer.workloadgenerator.audit.AuditReplayMapper;
 import java.io.IOException;
+import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
@@ -27,9 +28,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 
 public class TestWorkloadGenerator {
@@ -113,10 +112,9 @@ public class TestWorkloadGenerator {
     assertFalse(dfs.exists(new Path("/denied")));
 
     assertTrue(dfs.exists(new Path(auditOutputPath)));
-    FSDataInputStream auditOutput = dfs.open(new Path(auditOutputPath + "/part-r-00000"));
-    byte[] buf = new byte[auditOutput.available()];
-    assertTrue(auditOutput.read(buf) > 0);
-    System.out.println(new String(buf));
-    assertTrue(new String(buf).matches(".*hdfs,WRITE\\t[0-9]+\\n.*"));
+    try (FSDataInputStream auditOutputFile = dfs.open(new Path(auditOutputPath + "/part-r-00000"))) {
+      String auditOutput = IOUtils.toString(auditOutputFile);
+      assertTrue(auditOutput.matches(".*hdfs,WRITE\\t[0-9]+\\n.*"));
+    }
   }
 }

@@ -15,8 +15,8 @@ import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 
 /**
  * Represents the base class for a generic workload-generating mapper. By default, it will expect to use
- * {@link TimedInputFormat} as its {@link InputFormat}. Subclasses expecting a different {@link InputFormat}
- * should override the {@link #getInputFormat(Configuration)} method.
+ * {@link TimedInputFormat} as its {@link InputFormat}. Subclasses requiring a reducer or expecting
+ * a different {@link InputFormat} should override the {@link #configureJob(Job)} method.
  */
 public abstract class WorkloadMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> {
   /**

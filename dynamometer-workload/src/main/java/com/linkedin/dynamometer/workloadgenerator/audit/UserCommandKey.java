@@ -12,7 +12,11 @@ import javax.annotation.Nonnull;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.WritableComparable;
 
-
+/**
+ * <p>UserCommandKey is a {@link Writable} used as a composite key combining the user id and
+ * type of a replayed command. It is used as the output key for AuditReplayMapper and the
+ * keys for AuditReplayReducer.
+ */
 public class UserCommandKey implements WritableComparable {
   private Text user;
   private Text command;
@@ -36,16 +40,8 @@ public class UserCommandKey implements WritableComparable {
     return user.toString();
   }
 
-  public void setUser(String user) {
-    this.user.set(user);
-  }
-
   public String getCommand() {
     return command.toString();
-  }
-
-  public void setCommand(String command) {
-    this.command.set(command);
   }
 
   @Override
@@ -62,7 +58,7 @@ public class UserCommandKey implements WritableComparable {
 
   @Override
   public int compareTo(@Nonnull Object o) {
-    return Integer.compare(hashCode(), o.hashCode());
+    return toString().compareTo(o.toString());
   }
 
   @Override

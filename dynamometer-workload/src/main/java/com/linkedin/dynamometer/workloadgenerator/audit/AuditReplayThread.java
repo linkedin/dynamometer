@@ -101,13 +101,9 @@ public class AuditReplayThread extends Thread {
     }
   }
 
-  void drainCommandLatencies(Mapper.Context context) throws IOException {
+  void drainCommandLatencies(Mapper.Context context) throws InterruptedException, IOException {
     for (Map.Entry<UserCommandKey, LongWritable> ent : commandLatencyMap.entrySet()) {
-      try {
-        context.write(ent.getKey(), ent.getValue());
-      } catch (IOException|InterruptedException e) {
-       throw new IOException("Error writing to context", e);
-      }
+      context.write(ent.getKey(), ent.getValue());
     }
   }
 

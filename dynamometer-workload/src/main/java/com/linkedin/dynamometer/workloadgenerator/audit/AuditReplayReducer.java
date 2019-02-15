@@ -9,6 +9,12 @@ import org.apache.hadoop.mapreduce.Reducer;
 
 import java.io.IOException;
 
+
+/**
+ * <p>AuditReplayReducer aggregates the returned latency values from {@link AuditReplayMapper} and sums
+ * them up by {@link UserCommandKey}, which combines the user's id that ran the command and the type
+ * of the command (READ/WRITE).
+ */
 public class AuditReplayReducer extends
     Reducer<UserCommandKey, LongWritable, UserCommandKey, LongWritable> {
 
