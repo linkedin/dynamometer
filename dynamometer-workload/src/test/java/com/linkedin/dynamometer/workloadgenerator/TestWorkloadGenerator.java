@@ -12,6 +12,7 @@ import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
@@ -65,8 +66,7 @@ public class TestWorkloadGenerator {
     conf.set(AuditReplayMapper.INPUT_PATH_KEY, workloadInputPath);
     conf.set(AuditReplayMapper.OUTPUT_PATH_KEY, auditOutputPath);
     conf.setLong(AuditLogDirectParser.AUDIT_START_TIMESTAMP_KEY, 60*1000);
-    testAuditWorkload();
-    assertTrue(dfs.exists(new Path(auditOutputPath)));
+    testAuditWorkloadWithOutput(auditOutputPath);
   }
 
   @Test
@@ -77,8 +77,7 @@ public class TestWorkloadGenerator {
     conf.set(AuditReplayMapper.INPUT_PATH_KEY, workloadInputPath);
     conf.set(AuditReplayMapper.OUTPUT_PATH_KEY, auditOutputPath);
     conf.setClass(AuditReplayMapper.COMMAND_PARSER_KEY, AuditLogHiveTableParser.class, AuditCommandParser.class);
-    testAuditWorkload();
-    assertTrue(dfs.exists(new Path(auditOutputPath)));
+    testAuditWorkloadWithOutput(auditOutputPath);
   }
 
   /**
@@ -100,7 +99,7 @@ public class TestWorkloadGenerator {
     }
   }
 
-  private void testAuditWorkload() throws Exception {
+  private void testAuditWorkloadWithOutput(String auditOutputPath) throws Exception {
     long workloadStartTime = System.currentTimeMillis() + 10000;
     Job workloadJob = WorkloadDriver.getJobForSubmission(conf, dfs.getUri().toString(),
         workloadStartTime, AuditReplayMapper.class);
@@ -112,5 +111,12 @@ public class TestWorkloadGenerator {
     assertTrue(dfs.getFileStatus(new Path("/tmp/test1")).isFile());
     assertTrue(dfs.getFileStatus(new Path("/tmp/testDirRenamed")).isDirectory());
     assertFalse(dfs.exists(new Path("/denied")));
+
+    assertTrue(dfs.exists(new Path(auditOutputPath)));
+    FSDataInputStream auditOutput = dfs.open(new Path(auditOutputPath + "/part-r-00000"));
+    byte[] buf = new byte[auditOutput.available()];
+    assertTrue(auditOutput.read(buf) > 0);
+    System.out.println(new String(buf));
+    assertTrue(new String(buf).matches(".*hdfs,WRITE\\t[0-9]+\\n.*"));
   }
 }
