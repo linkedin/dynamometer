@@ -7,6 +7,7 @@ package com.linkedin.dynamometer.workloadgenerator.audit;
 import com.google.common.base.Splitter;
 import com.linkedin.dynamometer.workloadgenerator.WorkloadDriver;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.net.URI;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
@@ -55,27 +56,23 @@ public class AuditReplayThread extends Thread {
   private ConcurrentMap<String, FileSystem> fsCache;
   private URI namenodeUri;
   private UserGroupInformation loginUser;
-  private Mapper.Context mapperContext;
   private Configuration mapperConf;
   // If any exception is encountered it will be stored here
   private Exception exception;
   private long startTimestampMs;
   private boolean createBlocks;
 
-  private Text userCommandKey = new Text();
-  private LongWritable userCommandLatency = new LongWritable();
-
   // Counters are not thread-safe so we store a local mapping in our thread
   // and merge them all together at the end.
   private Map<REPLAYCOUNTERS, Counter> replayCountersMap = new HashMap<>();
   private Map<String, Counter> individualCommandsMap = new HashMap<>();
+  private Map<String, Long> userCommandMap = new HashMap<>();
 
   AuditReplayThread(Mapper.Context mapperContext, DelayQueue<AuditReplayCommand> queue,
       ConcurrentMap<String, FileSystem> fsCache) throws IOException {
     commandQueue = queue;
     this.fsCache = fsCache;
     loginUser = UserGroupInformation.getLoginUser();
-    this.mapperContext = mapperContext;
     mapperConf = mapperContext.getConfiguration();
     namenodeUri = URI.create(mapperConf.get(WorkloadDriver.NN_URI));
     startTimestampMs = mapperConf.getLong(WorkloadDriver.START_TIMESTAMP_MS, -1);
@@ -103,6 +100,20 @@ public class AuditReplayThread extends Thread {
     }
     for (Map.Entry<String, Counter> ent : individualCommandsMap.entrySet()) {
       context.getCounter(INDIVIDUAL_COMMANDS_COUNTER_GROUP, ent.getKey()).increment(ent.getValue().getValue());
+    }
+  }
+
+  void drainCommandLatencies(Mapper.Context context) throws IOException {
+    Text outputKey = new Text();
+    LongWritable outputValue = new LongWritable();
+    for (Map.Entry<String, Long> ent : userCommandMap.entrySet()) {
+      outputKey.set(ent.getKey());
+      outputValue.set(ent.getValue());
+      try {
+        context.write(outputKey, outputValue);
+      } catch (IOException|InterruptedException e) {
+       throw new IOException("Error writing to context", e);
+      }
     }
   }
 
@@ -262,14 +273,13 @@ public class AuditReplayThread extends Thread {
           break;
       }
 
-      userCommandKey.set(command.getSimpleUgi() + "_" + replayCommand.getType().toString());
+      String userCommandKey = command.getSimpleUgi() + "_" + replayCommand.getType().toString();
       long latency = System.currentTimeMillis() - startTime;
-      userCommandLatency.set(latency);
 
-      try {
-        mapperContext.write(userCommandKey, userCommandLatency);
-      } catch (InterruptedException|IOException e) {
-        throw new IOException("Error writing to context", e);
+      if (userCommandMap.containsKey(userCommandKey)) {
+        userCommandMap.put(userCommandKey, userCommandMap.get(userCommandKey) + latency);
+      } else {
+        userCommandMap.put(userCommandKey, latency);
       }
 
       switch (replayCommand.getType()) {

@@ -226,7 +226,7 @@ public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text, Text, 
   }
 
   @Override
-  public void cleanup(Mapper.Context context) throws InterruptedException {
+  public void cleanup(Mapper.Context context) throws InterruptedException, IOException {
     for (AuditReplayThread t : threads) {
       // Add in an indicator for each thread to shut down after the last real command
       t.addToQueue(AuditReplayCommand.getPoisonPill(highestTimestamp + 1));
@@ -235,6 +235,7 @@ public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text, Text, 
     for (AuditReplayThread t : threads) {
       t.join();
       t.drainCounters(context);
+      t.drainCommandLatencies(context);
       if (t.getException() != null) {
         threadException = Optional.of(t.getException());
       }
