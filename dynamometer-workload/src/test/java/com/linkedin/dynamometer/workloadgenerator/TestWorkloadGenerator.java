@@ -112,7 +112,7 @@ public class TestWorkloadGenerator {
     assertFalse(dfs.exists(new Path("/denied")));
 
     assertTrue(dfs.exists(new Path(auditOutputPath)));
-    try (FSDataInputStream auditOutputFile = dfs.open(new Path(auditOutputPath + "/part-r-00000"))) {
+    try (FSDataInputStream auditOutputFile = dfs.open(new Path(auditOutputPath, "part-r-00000"))) {
       String auditOutput = IOUtils.toString(auditOutputFile);
       assertTrue(auditOutput.matches(".*hdfs,WRITE\\t[0-9]+\\n.*"));
     }
