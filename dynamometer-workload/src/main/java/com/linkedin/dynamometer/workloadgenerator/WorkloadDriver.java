@@ -21,9 +21,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
-import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.MRJobConfig;
-import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
@@ -120,16 +118,9 @@ public class WorkloadDriver extends Configured implements Tool {
     conf.setLong(START_TIMESTAMP_MS, startTimestampMs);
 
     Job job = Job.getInstance(conf, "Dynamometer Workload Driver");
-    job.setOutputFormatClass(NullOutputFormat.class);
     job.setJarByClass(mapperClass);
     job.setMapperClass(mapperClass);
-    job.setInputFormatClass(mapperClass.newInstance().getInputFormat(conf));
-    job.setOutputFormatClass(NullOutputFormat.class);
-    job.setNumReduceTasks(0);
-    job.setMapOutputKeyClass(NullWritable.class);
-    job.setMapOutputValueClass(NullWritable.class);
-    job.setOutputKeyClass(NullWritable.class);
-    job.setOutputValueClass(NullWritable.class);
+    mapperClass.newInstance().configureJob(job);
 
     return job;
   }
@@ -153,7 +144,7 @@ public class WorkloadDriver extends Configured implements Tool {
 
   private String getMapperUsageInfo(String mapperClassName) throws ClassNotFoundException,
       InstantiationException, IllegalAccessException {
-    WorkloadMapper<?, ?> mapper = getMapperClass(mapperClassName).newInstance();
+    WorkloadMapper<?, ?, ?, ?> mapper = getMapperClass(mapperClassName).newInstance();
     StringBuilder builder = new StringBuilder("Usage for ");
     builder.append(mapper.getClass().getSimpleName());
     builder.append(":\n");
@@ -167,5 +158,4 @@ public class WorkloadDriver extends Configured implements Tool {
 
     return builder.toString();
   }
-
 }

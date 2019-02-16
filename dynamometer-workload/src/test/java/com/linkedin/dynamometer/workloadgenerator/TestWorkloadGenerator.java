@@ -9,9 +9,11 @@ import com.linkedin.dynamometer.workloadgenerator.audit.AuditLogDirectParser;
 import com.linkedin.dynamometer.workloadgenerator.audit.AuditLogHiveTableParser;
 import com.linkedin.dynamometer.workloadgenerator.audit.AuditReplayMapper;
 import java.io.IOException;
+import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
@@ -26,9 +28,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 
 public class TestWorkloadGenerator {
@@ -58,20 +58,25 @@ public class TestWorkloadGenerator {
   }
 
   @Test
-  public void testAuditWorkloadDirectParser() throws Exception {
+  public void testAuditWorkloadDirectParserWithOutput() throws Exception {
     String workloadInputPath =
         TestWorkloadGenerator.class.getClassLoader().getResource("audit_trace_direct").toString();
+    String auditOutputPath = "/tmp/trace_output_direct";
     conf.set(AuditReplayMapper.INPUT_PATH_KEY, workloadInputPath);
+    conf.set(AuditReplayMapper.OUTPUT_PATH_KEY, auditOutputPath);
     conf.setLong(AuditLogDirectParser.AUDIT_START_TIMESTAMP_KEY, 60*1000);
-    testAuditWorkload();
+    testAuditWorkloadWithOutput(auditOutputPath);
   }
 
   @Test
-  public void testAuditWorkloadHiveParser() throws Exception {
-    String workloadInputPath = TestWorkloadGenerator.class.getClassLoader().getResource("audit_trace_hive").toString();
+  public void testAuditWorkloadHiveParserWithOutput() throws Exception {
+    String workloadInputPath =
+        TestWorkloadGenerator.class.getClassLoader().getResource("audit_trace_hive").toString();
+    String auditOutputPath = "/tmp/trace_output_hive";
     conf.set(AuditReplayMapper.INPUT_PATH_KEY, workloadInputPath);
+    conf.set(AuditReplayMapper.OUTPUT_PATH_KEY, auditOutputPath);
     conf.setClass(AuditReplayMapper.COMMAND_PARSER_KEY, AuditLogHiveTableParser.class, AuditCommandParser.class);
-    testAuditWorkload();
+    testAuditWorkloadWithOutput(auditOutputPath);
   }
 
   /**
@@ -93,7 +98,7 @@ public class TestWorkloadGenerator {
     }
   }
 
-  private void testAuditWorkload() throws Exception {
+  private void testAuditWorkloadWithOutput(String auditOutputPath) throws Exception {
     long workloadStartTime = System.currentTimeMillis() + 10000;
     Job workloadJob = WorkloadDriver.getJobForSubmission(conf, dfs.getUri().toString(),
         workloadStartTime, AuditReplayMapper.class);
@@ -105,5 +110,11 @@ public class TestWorkloadGenerator {
     assertTrue(dfs.getFileStatus(new Path("/tmp/test1")).isFile());
     assertTrue(dfs.getFileStatus(new Path("/tmp/testDirRenamed")).isDirectory());
     assertFalse(dfs.exists(new Path("/denied")));
+
+    assertTrue(dfs.exists(new Path(auditOutputPath)));
+    try (FSDataInputStream auditOutputFile = dfs.open(new Path(auditOutputPath, "part-r-00000"))) {
+      String auditOutput = IOUtils.toString(auditOutputFile);
+      assertTrue(auditOutput.matches(".*hdfs,WRITE\\t[0-9]+\\n.*"));
+    }
   }
 }

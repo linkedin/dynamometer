@@ -145,6 +145,7 @@ public class Client extends Configured implements Tool {
   public static final String TOKEN_FILE_LOCATION_ARG = "token_file_location";
   public static final String WORKLOAD_REPLAY_ENABLE_ARG = "workload_replay_enable";
   public static final String WORKLOAD_INPUT_PATH_ARG = "workload_input_path";
+  public static final String WORKLOAD_OUTPUT_PATH_ARG = "workload_output_path";
   public static final String WORKLOAD_THREADS_PER_MAPPER_ARG = "workload_threads_per_mapper";
   public static final String WORKLOAD_START_DELAY_ARG = "workload_start_delay";
   public static final String WORKLOAD_RATE_FACTOR_ARG = "workload_rate_factor";
@@ -205,6 +206,8 @@ public class Client extends Configured implements Tool {
   private volatile Job workloadJob;
   // The input path for the workload job.
   private String workloadInputPath = "";
+  // The output path for the workload job metric results.
+  private String workloadOutputPath = "";
   // The number of threads to use per mapper for the workload job.
   private int workloadThreadsPerMapper;
   // The startup delay for the workload job.
@@ -299,6 +302,7 @@ public class Client extends Configured implements Tool {
     opts.addOption(WORKLOAD_REPLAY_ENABLE_ARG, false, "If specified, this client will additionally launch the workload "
         + "replay job to replay audit logs against the HDFS cluster which is started.");
     opts.addOption(WORKLOAD_INPUT_PATH_ARG, true, "Location of the audit traces to replay (Required for workload)");
+    opts.addOption(WORKLOAD_OUTPUT_PATH_ARG, true, "Location of the metrics output (Required for workload)");
     opts.addOption(WORKLOAD_THREADS_PER_MAPPER_ARG, true, "Number of threads per mapper to use to " +
         "replay the workload. (default " + AuditReplayMapper.NUM_THREADS_DEFAULT + ")");
     opts.addOption(WORKLOAD_START_DELAY_ARG, true, "Delay between launching the Workload MR job and " +
@@ -409,6 +413,7 @@ public class Client extends Configured implements Tool {
       }
       launchWorkloadJob = true;
       workloadInputPath = cliParser.getOptionValue(WORKLOAD_INPUT_PATH_ARG);
+      workloadOutputPath = cliParser.getOptionValue(WORKLOAD_OUTPUT_PATH_ARG);
       workloadThreadsPerMapper = Integer.parseInt(cliParser.getOptionValue(WORKLOAD_THREADS_PER_MAPPER_ARG,
           String.valueOf(AuditReplayMapper.NUM_THREADS_DEFAULT)));
       workloadRateFactor = Double.parseDouble(cliParser.getOptionValue(WORKLOAD_RATE_FACTOR_ARG,
@@ -912,6 +917,7 @@ public class Client extends Configured implements Tool {
       long workloadStartTime = System.currentTimeMillis() + workloadStartDelayMs;
       Configuration workloadConf = new Configuration(getConf());
       workloadConf.set(AuditReplayMapper.INPUT_PATH_KEY, workloadInputPath);
+      workloadConf.set(AuditReplayMapper.OUTPUT_PATH_KEY, workloadOutputPath);
       workloadConf.setInt(AuditReplayMapper.NUM_THREADS_KEY, workloadThreadsPerMapper);
       workloadConf.setDouble(AuditReplayMapper.RATE_FACTOR_KEY, workloadRateFactor);
       for (Map.Entry<String, String> configPair : workloadExtraConfigs.entrySet()) {

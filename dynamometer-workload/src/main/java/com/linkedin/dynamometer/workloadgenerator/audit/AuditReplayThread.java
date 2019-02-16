@@ -25,6 +25,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.hdfs.protocol.HdfsFileStatus;
+import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.counters.GenericCounter;
@@ -63,6 +64,7 @@ public class AuditReplayThread extends Thread {
   // and merge them all together at the end.
   private Map<REPLAYCOUNTERS, Counter> replayCountersMap = new HashMap<>();
   private Map<String, Counter> individualCommandsMap = new HashMap<>();
+  private Map<UserCommandKey, LongWritable> commandLatencyMap = new HashMap<>();
 
   AuditReplayThread(Mapper.Context mapperContext, DelayQueue<AuditReplayCommand> queue,
       ConcurrentMap<String, FileSystem> fsCache) throws IOException {
@@ -96,6 +98,12 @@ public class AuditReplayThread extends Thread {
     }
     for (Map.Entry<String, Counter> ent : individualCommandsMap.entrySet()) {
       context.getCounter(INDIVIDUAL_COMMANDS_COUNTER_GROUP, ent.getKey()).increment(ent.getValue().getValue());
+    }
+  }
+
+  void drainCommandLatencies(Mapper.Context context) throws InterruptedException, IOException {
+    for (Map.Entry<UserCommandKey, LongWritable> ent : commandLatencyMap.entrySet()) {
+      context.write(ent.getKey(), ent.getValue());
     }
   }
 
@@ -254,7 +262,14 @@ public class AuditReplayThread extends Thread {
           fs.concat(new Path(src), dsts.toArray(new Path[] {}));
           break;
       }
+
       long latency = System.currentTimeMillis() - startTime;
+
+      UserCommandKey userCommandKey = new UserCommandKey(command.getSimpleUgi(), replayCommand.getType().toString());
+      commandLatencyMap.putIfAbsent(userCommandKey, new LongWritable(0));
+      LongWritable latencyWritable = commandLatencyMap.get(userCommandKey);
+      latencyWritable.set(latencyWritable.get() + latency);
+
       switch (replayCommand.getType()) {
         case WRITE:
           replayCountersMap.get(REPLAYCOUNTERS.TOTALWRITECOMMANDLATENCY).increment(latency);
