@@ -21,6 +21,11 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
+<<<<<<< HEAD
+=======
+import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.mapred.JobConf;
+>>>>>>> ce1cf91 (Add classpath; set mapper memory)
 import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.util.Tool;
@@ -117,7 +122,15 @@ public class WorkloadDriver extends Configured implements Tool {
     LOG.info("The workload will start at " + startTimestampMs + " ms (" + startTimeString + ")");
     conf.setLong(START_TIMESTAMP_MS, startTimestampMs);
 
+<<<<<<< HEAD
     Job job = Job.getInstance(conf, "Dynamometer Workload Driver");
+=======
+    JobConf jobConf = new JobConf(conf);
+    jobConf.setMemoryForMapTask(4096);
+
+    Job job = Job.getInstance(jobConf, "Dynamometer Workload Driver");
+    job.setOutputFormatClass(NullOutputFormat.class);
+>>>>>>> ce1cf91 (Add classpath; set mapper memory)
     job.setJarByClass(mapperClass);
     job.setMapperClass(mapperClass);
     mapperClass.newInstance().configureJob(job);

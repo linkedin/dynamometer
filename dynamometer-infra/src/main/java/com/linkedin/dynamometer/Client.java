@@ -605,7 +605,15 @@ public class Client extends Configured implements Tool {
       classPathEnv.append(ApplicationConstants.CLASS_PATH_SEPARATOR);
       classPathEnv.append(c.trim());
     }
-    classPathEnv.append(ApplicationConstants.CLASS_PATH_SEPARATOR).append("./log4j.properties");
+    classPathEnv.append(File.pathSeparatorChar).append("./log4j.properties");
+    classPathEnv.append(File.pathSeparatorChar).append("/opt/hadoop/yarn_latest/share/hadoop/common/*");
+    classPathEnv.append(File.pathSeparatorChar).append("/opt/hadoop/yarn_latest/share/hadoop/common/lib/*");
+    classPathEnv.append(File.pathSeparatorChar).append("/opt/hadoop/yarn_latest/share/hadoop/yarn/*");
+    classPathEnv.append(File.pathSeparatorChar).append("/opt/hadoop/yarn_latest/share/hadoop/hdfs/*");
+    classPathEnv.append(File.pathSeparatorChar).append("/opt/hadoop/yarn_latest/share/hadoop/httpfs/*");
+    classPathEnv.append(File.pathSeparatorChar).append("/opt/hadoop/yarn_latest/share/hadoop/kms/*");
+    classPathEnv.append(File.pathSeparatorChar).append("/opt/hadoop/yarn_latest/share/hadoop/mapreduce/*");
+    classPathEnv.append(File.pathSeparatorChar).append("/opt/hadoop/yarn_latest/share/hadoop/tools/*");
 
     // add the runtime classpath needed for tests to work
     if (getConf().getBoolean(YarnConfiguration.IS_MINI_YARN_CLUSTER, false)) {
