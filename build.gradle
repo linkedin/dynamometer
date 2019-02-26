@@ -14,6 +14,10 @@ buildscript {
   }
 }
 
+plugins {
+  id "org.shipkit.java" version "2.0.0"
+}
+
 def hadoopVersion = '2.7.5'
 ext.deps = [
   hadoop: [
@@ -31,7 +35,6 @@ ext.deps = [
 ]
 
 allprojects {
-  project.version= '0.1.0-SNAPSHOT'
   group = 'com.linkedin.dynamometer'
 }
 
