@@ -25,7 +25,7 @@ import org.apache.hadoop.io.Text;
  *   INSERT OVERWRITE DIRECTORY '${outputPath}'
  *   SELECT (timestamp - ${startTimestamp} AS relativeTimestamp, ugi, cmd, src, dst, ip
  *   FROM '${auditLogTableLocation}'
- *   WHERE timestamp >= ${startTimestamp} AND timestamp < ${endTimestamp}
+ *   WHERE timestamp &gt;= ${startTimestamp} AND timestamp &lt; ${endTimestamp}
  *   DISTRIBUTE BY src
  *   SORT BY relativeTimestamp ASC;
  * </pre>
