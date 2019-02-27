@@ -1,0 +1,24 @@
+// Set auth tokens as in https://github.com/mockito/shipkit/blob/master/docs/getting-started.md
+
+shipkit {
+   gitHub.repository = "linkedin/dynamometer"
+   gitHub.readOnlyAuthToken = "899334b549ec5ec5d247ccf12731fdad8ee0191b"
+   gitHub.writeAuthToken = System.getenv("GH_WRITE_TOKEN")
+}
+
+allprojects {
+   plugins.withId("com.shipkit.bintray") {
+       bintray {
+           key = System.getenv("BINTRAY_API_KEY")
+
+           pkg {
+               repo = 'maven'
+               user = System.getenv("BINTRAY_USER")
+               userOrg = 'linkedin'
+               name = 'dynamometer'
+               licenses = ['BSD 2-Clause']
+               labels = ['hadoop', 'benchmarking']
+           }
+       }
+   }
+}
