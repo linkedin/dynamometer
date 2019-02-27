@@ -21,14 +21,14 @@ import org.apache.hadoop.io.Text;
  * Where relativeTimestampMs represents the time elapsed between the start of
  * the audit log and the occurrence of the audit event. Assuming your audit
  * logs are available in Hive, this can be generated with a query looking like:
- * <pre>
+ * <pre>{@code
  *   INSERT OVERWRITE DIRECTORY '${outputPath}'
  *   SELECT (timestamp - ${startTimestamp} AS relativeTimestamp, ugi, cmd, src, dst, ip
  *   FROM '${auditLogTableLocation}'
- *   WHERE timestamp &gt;= ${startTimestamp} AND timestamp &lt; ${endTimestamp}
+ *   WHERE timestamp >= ${startTimestamp} AND timestamp < ${endTimestamp}
  *   DISTRIBUTE BY src
  *   SORT BY relativeTimestamp ASC;
- * </pre>
+ * }</pre>
  * Note that the sorting step is important; events in each distinct file must be in
  * time-ascending order.
  */
