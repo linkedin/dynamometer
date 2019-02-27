@@ -25,12 +25,21 @@ else
   edits_dir="`pwd`"
 fi
 
-edits_file_count=`ls -1 ${edits_dir} | grep -E "^edits_[[:digit:]]+-0*$image_txid\$" | wc -l`
+# try to find the edit logs whose transaction range covers the txid from the fsimage
+# first find the first txid which is greater or equal to the fsimage txid
+ending_txid=`ls -1 ${edits_dir} | grep -E "^edits_[[:digit:]]+-[[:digit:]]+\$" | \
+    awk -v t="$image_txid" -F'-' '{if ($2 >= t) {print $2}}' | head -1`
+if [ -z "$ending_txid" ]; then
+  echo "Error; found 0 covering edit files."
+  exit 1
+fi
+# then grep the file ending with the ending_txid, exit if duplicated edits exist
+edits_file_count=`ls -1 ${edits_dir} | grep -E "^edits_[[:digit:]]+-0*$ending_txid\$" | wc -l`
 if [ "$edits_file_count" != 1 ]; then
   echo "Error; found $edits_file_count matching edit files."
   exit 1
 fi
-edits_file=`ls -1 ${edits_dir} | grep -E "^edits_[[:digit:]]+-0*$image_txid\$"`
+edits_file=`ls -1 ${edits_dir} | grep -E "^edits_[[:digit:]]+-0*$ending_txid\$"`
 
 awk_script='/TIMESTAMP/ { line=$0 } \
       END { match(line, />([[:digit:]]+)</, output); print output[1] }'
