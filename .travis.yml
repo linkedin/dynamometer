@@ -1,21 +1,21 @@
 language: java
 jdk:
   - oraclejdk8
-env:
-  - HADOOP_VERSION=2.7.6
-  - HADOOP_VERSION=2.8.4
 git:
   depth: 3
+install: true
 
 jobs:
   include:
     - stage: test
       name: "Build"
-      script: "./gradlew build"
-      install: true
-    - name: "Unit tests"
+      script: "./gradlew build -x test"
+    - stage: test
       script: "./gradlew test --stacktrace --info -Ddyno.hadoop.bin.version=${HADOOP_VERSION}"
+      env: HADOOP_VERSION=2.7.6
+    - stage: test
+      script: "./gradlew test --stacktrace --info -Ddyno.hadoop.bin.version=${HADOOP_VERSION}"
+      env: HADOOP_VERSION=2.8.4
 
 stages:
   - test
-
