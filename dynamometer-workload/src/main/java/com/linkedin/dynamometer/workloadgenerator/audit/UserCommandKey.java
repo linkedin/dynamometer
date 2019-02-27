@@ -13,7 +13,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.WritableComparable;
 
 /**
- * UserCommandKey is a {@link Writable} used as a composite key combining the user id and
+ * UserCommandKey is a {@link WritableComparable} used as a composite key combining the user id and
  * type of a replayed command. It is used as the output key for AuditReplayMapper and the
  * keys for AuditReplayReducer.
  */
