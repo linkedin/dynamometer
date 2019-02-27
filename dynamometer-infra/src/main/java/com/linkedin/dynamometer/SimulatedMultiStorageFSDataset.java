@@ -581,14 +581,14 @@ public class SimulatedMultiStorageFSDataset extends SimulatedFSDataset {
 
       for (Block b: injectBlocks) {
         BInfo binfo = new BInfo(bpid, b, false);
-        blockMaps.get((int) (b.getBlockId() % storages.size())).put(binfo.theBlock, binfo);
+        blockMaps.get((int) Math.floorMod(b.getBlockId(), storages.size())).put(binfo.theBlock, binfo);
       }
     }
   }
 
   /** Get the storage that a given block lives within. */
   private SimulatedStorage getStorage(Block b) {
-    return storages.get((int) (b.getBlockId() % storages.size()));
+    return storages.get((int) Math.floorMod(b.getBlockId(), storages.size()));
   }
 
   /**
