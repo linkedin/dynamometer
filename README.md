@@ -173,8 +173,8 @@ via logging when the Dyno-NN has exited safemode and is ready for use.
 At this point, a workload job (map-only MapReduce job) can be launched, e.g.:
 ```
 ./bin/start-workload.sh
-    -Dauditreplay.input-path hdfs:///dyno/audit_logs/
-    -Dauditreplay.num-threads 50
+    -Dauditreplay.input-path=hdfs:///dyno/audit_logs/
+    -Dauditreplay.num-threads=50
     -nn_uri hdfs://namenode_address:port/
     -start_time_offset 5m
     -mapper_class_name AuditReplayMapper
