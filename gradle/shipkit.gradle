@@ -1,30 +1,23 @@
+// Set auth tokens as in https://github.com/mockito/shipkit/blob/master/docs/getting-started.md
+
 shipkit {
    gitHub.repository = "linkedin/dynamometer"
-
-   //TODO generate and use your own read-only GitHub personal access token
-   gitHub.readOnlyAuthToken = "76826c9ec886612f504d12fd4268b16721c4f85d"
-
-   //TODO generate GitHub write token, and ensure your Travis CI has this env variable exported
+   gitHub.readOnlyAuthToken = "899334b549ec5ec5d247ccf12731fdad8ee0191b"
    gitHub.writeAuthToken = System.getenv("GH_WRITE_TOKEN")
 }
 
 allprojects {
-   plugins.withId("com.jfrog.bintray") {
-
-       //Bintray configuration is handled by JFrog Bintray Gradle Plugin
-       //For reference see the official documentation: https://github.com/bintray/gradle-bintray-plugin
+   plugins.withId("com.shipkit.bintray") {
        bintray {
-
-           //TODO sign up for free open source account with https://bintray.com, then look up your API key on your profile page in Bintray
            key = System.getenv("BINTRAY_API_KEY")
 
            pkg {
-               repo = 'dynamometer'
+               repo = 'maven'
                user = System.getenv("BINTRAY_USER")
                userOrg = 'linkedin'
                name = 'dynamometer'
                licenses = ['BSD 2-Clause']
-               labels = ['continuous delivery', 'release automation', 'shipkit']
+               labels = ['hadoop', 'benchmarking']
            }
        }
    }
