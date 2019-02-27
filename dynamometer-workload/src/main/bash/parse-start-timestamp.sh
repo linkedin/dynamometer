@@ -27,8 +27,8 @@ fi
 
 # try to find the edit logs whose transaction range covers the txid from the fsimage
 # first find the first txid which is greater or equal to the fsimage txid
-ending_txid=`ls -1 ${edits_dir} | grep -E "^edits_[[:digit:]]+-[[:digit:]]+\$" | cut -d'-' -f 2 | \
-    awk -v t="$image_txid" {'if ($1 >= t) {print $1}'} | head -1`
+ending_txid=`ls -1 ${edits_dir} | grep -E "^edits_[[:digit:]]+-[[:digit:]]+\$" | \
+    awk -v t="$tmp_txid" -F'-' '{if ($2 >= t) {print $2}}' | head -1`
 if [ -z "$ending_txid" ]; then
   echo "Error; found 0 covering edit files."
   exit 1
