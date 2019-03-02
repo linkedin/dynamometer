@@ -34,8 +34,10 @@ Dynamometer consists of three main components:
 * Block Generator: This is a MapReduce job used to generate input files for each Dyno-DN; its
   execution is a prerequisite step to running the infrastructure application.
 
-They are built through standard Gradle means, i.e. `gradle build`. In addition to compiling everything,
-this will generate a distribution tarball, containing all necessary components for an end user, at
+They are built through standard [Gradle](https://gradle.org/) means, i.e. `./gradlew build`. This
+project uses the [Gradle wrapper](https://docs.gradle.org/current/userguide/gradle_wrapper.html/)
+In addition to compiling everything, this will generate a distribution tarball, containing all
+necessary components for an end user, at
 `build/distributions/dynamometer-VERSION.tar` (a zip is also generated; their contents are identical).
 This distribution does not contain any Hadoop dependencies, which are necessary to launch the application,
 as it assumes Dynamometer will be run from a machine which has a working installation of Hadoop. To
