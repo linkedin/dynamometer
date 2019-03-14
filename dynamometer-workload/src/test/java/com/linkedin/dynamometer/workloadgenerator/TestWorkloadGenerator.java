@@ -24,6 +24,8 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.authorize.AuthorizationException;
 import org.apache.hadoop.security.authorize.ImpersonationProvider;
+import org.apache.htrace.commons.logging.Log;
+import org.apache.htrace.commons.logging.LogFactory;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -32,7 +34,8 @@ import static org.junit.Assert.*;
 
 
 public class TestWorkloadGenerator {
-
+  private static final Log LOG = LogFactory.getLog(TestWorkloadGenerator.class);
+  
   private Configuration conf;
   private MiniDFSCluster miniCluster;
   private FileSystem dfs;
@@ -114,7 +117,11 @@ public class TestWorkloadGenerator {
     assertTrue(dfs.exists(new Path(auditOutputPath)));
     try (FSDataInputStream auditOutputFile = dfs.open(new Path(auditOutputPath, "part-r-00000"))) {
       String auditOutput = IOUtils.toString(auditOutputFile);
-      assertTrue(auditOutput.matches(".*hdfs,WRITE\\t[0-9]+\\n.*"));
+      LOG.info(auditOutput);
+      assertTrue(auditOutput.matches(".*(hdfs,WRITE,[A-Z]+,[17]+,[0-9]+\\n){3}.*"));
+      // Matches three lines of the format "hdfs,WRITE,name,count,time"
+      // Using [17] for the count group because each operation is run either
+      // 1 or 7 times but the output order isn't guaranteed
     }
   }
 }
