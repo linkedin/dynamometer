@@ -118,7 +118,7 @@ public class TestWorkloadGenerator {
     try (FSDataInputStream auditOutputFile = dfs.open(new Path(auditOutputPath, "part-r-00000"))) {
       String auditOutput = IOUtils.toString(auditOutputFile);
       LOG.info(auditOutput);
-      assertTrue(auditOutput.matches(".*(hdfs,WRITE,[A-Z]+\\t[17]+,[0-9]+\\n){3}.*"));
+      assertTrue(auditOutput.matches(".*(hdfs,WRITE,[A-Z]+,[17]+,[0-9]+\\n){3}.*"));
       // Matches three lines of the format "hdfs,WRITE  count,time"
     }
   }

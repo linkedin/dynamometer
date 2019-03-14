@@ -267,6 +267,6 @@ public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text, UserCo
     job.setOutputFormatClass(TextOutputFormat.class);
 
     TextOutputFormat.setOutputPath(job, new Path(job.getConfiguration().get(OUTPUT_PATH_KEY)));
-    TextOutputFormat.SEPERATOR = ",";
+    job.getConfiguration().set(TextOutputFormat.SEPERATOR, ",");
   }
 }
