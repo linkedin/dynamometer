@@ -18,7 +18,8 @@ public class AuditReplayReducer extends
     Reducer<UserCommandKey, CountTimeWritable, UserCommandKey, CountTimeWritable> {
 
   @Override
-  protected void reduce(UserCommandKey key, Iterable<CountTimeWritable> values, Context context) throws IOException, InterruptedException {
+  protected void reduce(UserCommandKey key, Iterable<CountTimeWritable> values, Context context)
+      throws IOException, InterruptedException {
     long countSum = 0;
     long timeSum = 0;
     for (CountTimeWritable v : values) {
