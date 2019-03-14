@@ -264,7 +264,8 @@ public class AuditReplayThread extends Thread {
 
       long latency = System.currentTimeMillis() - startTime;
 
-      UserCommandKey userCommandKey = new UserCommandKey(command.getSimpleUgi(), replayCommand.toString(), replayCommand.getType().toString());
+      UserCommandKey userCommandKey = new UserCommandKey(command.getSimpleUgi(),
+          replayCommand.toString(), replayCommand.getType().toString());
       commandLatencyMap.putIfAbsent(userCommandKey, new CountTimeWritable());
       CountTimeWritable latencyWritable = commandLatencyMap.get(userCommandKey);
       latencyWritable.setCount(latencyWritable.getCount() + 1);

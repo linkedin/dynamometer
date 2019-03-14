@@ -119,7 +119,9 @@ public class TestWorkloadGenerator {
       String auditOutput = IOUtils.toString(auditOutputFile);
       LOG.info(auditOutput);
       assertTrue(auditOutput.matches(".*(hdfs,WRITE,[A-Z]+,[17]+,[0-9]+\\n){3}.*"));
-      // Matches three lines of the format "hdfs,WRITE  count,time"
+      // Matches three lines of the format "hdfs,WRITE,name,count,time"
+      // Using [17] for the count group because each operation is run either
+      // 1 or 7 times but the output order isn't guaranteed
     }
   }
 }
