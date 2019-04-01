@@ -64,7 +64,7 @@ public class AbusiveUserMapper extends WorkloadMapper<LongWritable, NullWritable
 
   @Override
   public String getDescription() {
-    return "This mapper creates 1-byte files for the specified duration.";
+    return "This mapper creates a number of large and small operations belonging to different users.";
   }
 
   @Override
