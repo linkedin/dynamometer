@@ -59,6 +59,7 @@ public class AbusiveUserMapper extends WorkloadMapper<LongWritable, NullWritable
   private ConcurrentHashMap<String, FileSystem> fsMap = new ConcurrentHashMap<String, FileSystem>();
   private Path parentFolder;
   private int numLargeJobs;
+  private int numFiles;
   private int mappersPerUser;
   private boolean enableWriteOps;
 
@@ -94,7 +95,7 @@ public class AbusiveUserMapper extends WorkloadMapper<LongWritable, NullWritable
     Configuration conf = context.getConfiguration();
     int taskID = context.getTaskAttemptID().getTaskID().getId();
     numLargeJobs = conf.getInt(NUM_LARGE_JOBS_KEY, NUM_LARGE_JOBS_DEFAULT);
-    int numFiles = conf.getInt(NUM_FILES_KEY, NUM_FILES_DEFAULT);
+    numFiles = conf.getInt(NUM_FILES_KEY, NUM_FILES_DEFAULT);
     mappersPerUser = conf.getInt(MAPPERS_PER_USER_KEY, MAPPERS_PER_USER_DEFAULT);
     enableWriteOps = conf.getBoolean(ENABLE_WRITE_OPS_KEY, ENABLE_WRITE_OPS_DEFAULT);
 
@@ -124,17 +125,20 @@ public class AbusiveUserMapper extends WorkloadMapper<LongWritable, NullWritable
     // Make job folder
     fs.mkdirs(parentFolder);
 
-    if (taskID < numLargeJobs) {
-      // Large job: set up files for large listing op
-      for (int i = 0; i < numFiles; i++) {
-        fs.mkdirs(new Path(parentFolder, new Path("big" + i)));
-      }
-    } else if (enableWriteOps) {
-      // Small write job: no setup required
-    } else {
-      // Small read job: set up file for single-file listing op
-      fs.mkdirs(new Path(parentFolder, new Path("small" + taskID)));
+    setupLargeListingJob(fs);
+    if (taskID > numLargeJobs && !enableWriteOps) {
+      setupSmallListingJob(fs, taskID);
     }
+  }
+
+  private void setupLargeListingJob(FileSystem fs) throws IOException {
+    for (int i = 0; i < numFiles; i++) {
+      fs.mkdirs(new Path(parentFolder, new Path("big", new Path("sub" + i))));
+    }
+  }
+
+  private void setupSmallListingJob(FileSystem fs, int taskID) throws IOException {
+    fs.mkdirs(new Path(parentFolder, new Path("small" + taskID)));
   }
 
   @Override
@@ -145,15 +149,24 @@ public class AbusiveUserMapper extends WorkloadMapper<LongWritable, NullWritable
     FileSystem fs = fsMap.get(proxyUser);
 
     if (taskID < numLargeJobs) {
-      // Large job: lists
-      fs.listStatus(parentFolder);
+      runLargeListingJob(fs);
     } else if (enableWriteOps) {
-      // Small mkdir op
-      fs.mkdirs(new Path(parentFolder, new Path("small" + taskID)));
-      fs.delete(new Path(parentFolder, new Path("small" + taskID)), true);
+      runSmallMkdirJob(fs, taskID);
     } else {
-      // Small listing op
-      fs.listStatus(new Path(parentFolder, new Path("small" + taskID)));
+      runSmallListingJob(fs, taskID);
     }
+  }
+
+  private void runLargeListingJob(FileSystem fs) throws IOException {
+    fs.listStatus(new Path(parentFolder, new Path("big")));
+  }
+
+  private void runSmallMkdirJob(FileSystem fs, int taskID) throws IOException {
+    fs.mkdirs(new Path(parentFolder, new Path("small" + taskID)));
+    fs.delete(new Path(parentFolder, new Path("small" + taskID)), true);
+  }
+
+  private void runSmallListingJob(FileSystem fs, int taskID) throws IOException {
+    fs.listStatus(new Path(parentFolder, new Path("small" + taskID)));
   }
 }
