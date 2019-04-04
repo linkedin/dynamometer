@@ -176,19 +176,23 @@ At this point, a workload job (map-only MapReduce job) can be launched, e.g.:
 ```
 ./bin/start-workload.sh
     -Dauditreplay.input-path=hdfs:///dyno/audit_logs/
+    -Dauditreplay.output-path=hdfs:///dyno/results/
     -Dauditreplay.num-threads=50
     -nn_uri hdfs://namenode_address:port/
     -start_time_offset 5m
     -mapper_class_name AuditReplayMapper
 ```
 The type of workload generation is configurable; AuditReplayMapper replays an audit log trace as discussed previously.
-The AuditReplayMapper is configured via configurations; `auditreplay.input-path` and `auditreplay.num-threads` are
-required to specify the input path for audit log files and the number of threads per map task. A number of map tasks
-equal to the number of files in `input-path` will be launched; each task will read in one of these input files and
-use `num-threads` threads to replay the events contained within that file. A best effort is made to faithfully replay
-the audit log events at the same pace at which they originally occurred (optionally, this can be adjusted by
-specifying `auditreplay.rate-factor` which is a multiplicative factor towards the rate of replay, e.g. use 2.0 to
-replay the events at twice the original speed).
+The AuditReplayMapper is configured via configurations; `auditreplay.input-path`, `auditreplay.output-path` and
+`auditreplay.num-threads` are required to specify the input path for audit log files, the output path for the results,
+and the number of threads per map task. A number of map tasks equal to the number of files in `input-path` will be
+launched; each task will read in one of these input files and use `num-threads` threads to replay the events contained
+within that file. A best effort is made to faithfully replay the audit log events at the same pace at which they
+originally occurred (optionally, this can be adjusted by specifying `auditreplay.rate-factor` which is a multiplicative
+factor towards the rate of replay, e.g. use 2.0 to replay the events at twice the original speed).
+
+The AuditReplayMapper will output the benchmark results to a file `part-r-00000` in the output directory in CSV format.
+Each line is in the format `user,type,operation,numops,cumulativelatency`, e.g. `hdfs,WRITE,MKDIRS,2,150`. 
 
 #### Integrated Workload Launch
 
@@ -203,6 +207,7 @@ launch an integrated application with the same parameters as were used above, th
     -block_list_path hdfs:///dyno/blocks
     -workload_replay_enable
     -workload_input_path hdfs:///dyno/audit_logs/
+    -workload_output_path hdfs:///dyno/results/
     -workload_threads_per_mapper 50
     -workload_start_delay 5m
 ```
