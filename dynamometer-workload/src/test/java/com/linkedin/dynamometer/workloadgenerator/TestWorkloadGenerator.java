@@ -118,10 +118,10 @@ public class TestWorkloadGenerator {
     try (FSDataInputStream auditOutputFile = dfs.open(new Path(auditOutputPath, "part-r-00000"))) {
       String auditOutput = IOUtils.toString(auditOutputFile);
       LOG.info(auditOutput);
-      assertTrue(auditOutput.matches(".*(hdfs,WRITE,[A-Z]+,[17]+,[0-9]+\\n){3}.*"));
+      assertTrue(auditOutput.matches(".*(hdfs,WRITE,[A-Z]+,[13]+,[0-9]+\\n){3}.*"));
       // Matches three lines of the format "hdfs,WRITE,name,count,time"
-      // Using [17] for the count group because each operation is run either
-      // 1 or 7 times but the output order isn't guaranteed
+      // Using [13] for the count group because each operation is run either
+      // 1 or 3 times but the output order isn't guaranteed
     }
   }
 }
