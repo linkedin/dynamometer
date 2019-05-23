@@ -77,7 +77,7 @@ class XMLParser {
       long size = Long.parseLong(blockMatcher.group(3));
       blockInfos.add(new BlockInfo(id, gs, size, currentReplication));
     }
-    if (line.contains("</inode>")) {
+    if (line.endsWith("</inode>")) {
       transitionTo(State.DEFAULT);
     }
     return blockInfos;

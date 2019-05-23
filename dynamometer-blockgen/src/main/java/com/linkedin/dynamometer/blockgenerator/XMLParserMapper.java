@@ -49,7 +49,13 @@ public class XMLParserMapper extends Mapper<LongWritable, Text, IntWritable, Blo
   public void map(LongWritable lineNum, Text line,
       Mapper<LongWritable, Text, IntWritable, BlockInfo>.Context context)
       throws IOException, InterruptedException {
-    List<BlockInfo> blockInfos = parser.parseLine(line.toString());
+    List<BlockInfo> blockInfos;
+    try {
+      blockInfos = parser.parseLine(line.toString());
+    } catch (IOException e) {
+      throw new IOException(String.format("IOException %s happened for line %s", e.getMessage(), line));
+    }
+
     for (BlockInfo blockInfo : blockInfos) {
       for (short i = 0; i < blockInfo.getReplication(); i++) {
         context.write(new IntWritable((blockIndex + i) % numDataNodes), blockInfo);
