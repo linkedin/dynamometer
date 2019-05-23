@@ -21,11 +21,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
-<<<<<<< HEAD
-=======
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapred.JobConf;
->>>>>>> ce1cf91 (Add classpath; set mapper memory)
 import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.util.Tool;
@@ -47,6 +44,8 @@ public class WorkloadDriver extends Configured implements Tool {
   public static final String START_TIME_OFFSET_DEFAULT = "1m";
   public static final String NN_URI = "nn_uri";
   public static final String MAPPER_CLASS_NAME = "mapper_class_name";
+  public static final String QUEUE_ARG = "queue";
+  public static final String QUEUE_DEFAULT = "default";
 
   public int run(String[] args) throws Exception {
     Option helpOption = new Option("h", "help", false, "Shows this message. Additionally specify the " + MAPPER_CLASS_NAME
@@ -67,6 +66,8 @@ public class WorkloadDriver extends Configured implements Tool {
             "1. AuditReplayMapper \n" + "2. CreateFileMapper \nFully specified class names are also supported.")
         .isRequired().create(MAPPER_CLASS_NAME);
     options.addOption(mapperClassOption);
+    options.addOption(QUEUE_ARG, true, "RM Queue in which this application is to be submitted (default '" +
+            QUEUE_DEFAULT + "')");
 
     Options helpOptions = new Options();
     helpOptions.addOption(helpOption);
@@ -104,7 +105,6 @@ public class WorkloadDriver extends Configured implements Tool {
       System.err.println(getMapperUsageInfo(cli.getOptionValue(MAPPER_CLASS_NAME)));
       return 1;
     }
-
     Job job = getJobForSubmission(getConf(), nnURI, startTimestampMs, mapperClass);
 
     boolean success = job.waitForCompletion(true);
@@ -122,15 +122,13 @@ public class WorkloadDriver extends Configured implements Tool {
     LOG.info("The workload will start at " + startTimestampMs + " ms (" + startTimeString + ")");
     conf.setLong(START_TIMESTAMP_MS, startTimestampMs);
 
-<<<<<<< HEAD
     Job job = Job.getInstance(conf, "Dynamometer Workload Driver");
-=======
+
     JobConf jobConf = new JobConf(conf);
     jobConf.setMemoryForMapTask(4096);
-
+    jobConf.setQueueName("hadoop-adhoc");
     Job job = Job.getInstance(jobConf, "Dynamometer Workload Driver");
     job.setOutputFormatClass(NullOutputFormat.class);
->>>>>>> ce1cf91 (Add classpath; set mapper memory)
     job.setJarByClass(mapperClass);
     job.setMapperClass(mapperClass);
     mapperClass.newInstance().configureJob(job);
