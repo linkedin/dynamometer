@@ -325,6 +325,10 @@ public class SimulatedMultiStorageFSDataset extends SimulatedFSDataset {
     public boolean isOnTransientStorage() {
       return false;
     }
+
+    public OutputStream createRestartMetaStream() throws IOException {
+      return null;
+    }
   }
 
   /**
@@ -509,7 +513,6 @@ public class SimulatedMultiStorageFSDataset extends SimulatedFSDataset {
       return false;
     }
 
-    @Override
     public void reserveSpaceForRbw(long bytesToReserve) {
     }
 
@@ -537,6 +540,12 @@ public class SimulatedMultiStorageFSDataset extends SimulatedFSDataset {
     public byte[] loadLastPartialChunkChecksum(
         File blockFile, File metaFile) throws IOException {
       return null;
+    }
+
+    public void reserveSpaceForReplica(long l) {
+    }
+
+    public void releaseLockedMemory(long l) {
     }
   }
 
@@ -1308,7 +1317,6 @@ public class SimulatedMultiStorageFSDataset extends SimulatedFSDataset {
     throw new UnsupportedOperationException();
   }
 
-  @Override
   public List<FsVolumeSpi> getVolumes() {
     throw new UnsupportedOperationException();
   }
@@ -1344,7 +1352,6 @@ public class SimulatedMultiStorageFSDataset extends SimulatedFSDataset {
     throw new UnsupportedOperationException();
   }
 
-  @Override
   public List<FinalizedReplica> getFinalizedBlocksOnPersistentStorage(String bpid) {
     throw new UnsupportedOperationException();
   }

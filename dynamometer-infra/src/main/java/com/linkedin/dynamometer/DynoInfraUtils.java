@@ -11,6 +11,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
@@ -22,6 +24,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import javax.net.SocketFactory;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
@@ -317,11 +320,41 @@ public class DynoInfraUtils {
   private static void triggerDataNodeBlockReport(Configuration conf, String dataNodeTarget) throws IOException {
     InetSocketAddress datanodeAddr = NetUtils.createSocketAddr(dataNodeTarget);
 
-    ClientDatanodeProtocol dnProtocol = DFSUtil.createClientDatanodeProtocolProxy(
+    ClientDatanodeProtocol dnProtocol = createClientDatanodeProtocolProxy(
         datanodeAddr, UserGroupInformation.getCurrentUser(), conf,
         NetUtils.getSocketFactory(conf, ClientDatanodeProtocol.class));
 
     dnProtocol.triggerBlockReport(new BlockReportOptions.Factory().build());
+  }
+
+  /**
+   * Between Hadoop 2.7 and 2.8, createClientDatanodeProtocolProxy moved from DFSUtil to DFSUtilClient.
+   * This provides a shim which will find the method in either class and invoke it.
+   */
+  private static ClientDatanodeProtocol createClientDatanodeProtocolProxy(InetSocketAddress datanodeAddr,
+      UserGroupInformation ugi, Configuration conf, SocketFactory socketFactory) {
+    final String methodName = "createClientDatanodeProtocolProxy";
+    Method createProxyMethod;
+    try {
+      // In versions 2.7 and below, it is located within DFSUtil ...
+      createProxyMethod = DFSUtil.class.getMethod(methodName, InetSocketAddress.class, UserGroupInformation.class,
+          Configuration.class, SocketFactory.class);
+    } catch (NoSuchMethodException nsme) {
+      // ... but in later versions, it is located within DFSUtilClient
+      try {
+        // DFSUtilClient doesn't yet exist in Hadoop 2.7 so it has to be loaded via reflection
+        Class<?> dfsUtilClient = Class.forName(DFSUtil.class.getName() + "Client");
+        createProxyMethod = dfsUtilClient.getMethod(methodName, InetSocketAddress.class,
+            UserGroupInformation.class, Configuration.class, SocketFactory.class);
+      } catch (ClassNotFoundException | NoSuchMethodException e) {
+        throw new RuntimeException("Unable to load " + methodName + "; looked in DFSUtil and DFSUtilClient", e);
+      }
+    }
+    try {
+      return (ClientDatanodeProtocol) createProxyMethod.invoke(null, datanodeAddr, ugi, conf, socketFactory);
+    } catch (IllegalAccessException | InvocationTargetException e) {
+      throw new RuntimeException("Unable to call " + methodName, e);
+    }
   }
 
   /**

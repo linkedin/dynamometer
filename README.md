@@ -1,5 +1,11 @@
 # Dynamometer [![Build Status](https://travis-ci.org/linkedin/dynamometer.svg?branch=master)](https://travis-ci.org/linkedin/dynamometer)
 
+## Dynamometer in Hadoop
+
+Please be aware that Dynamometer has now been committed into Hadoop itself in the JIRA ticket [HDFS-12345](https://issues.apache.org/jira/browse/HDFS-12345). It is located under the `hadoop-tools/hadoop-dynamometer` submodule. This GitHub project will continue to be maintained for testing
+against the `2.x` release line of Hadoop, but all versions of Dynamometer which work with Hadoop 3 will
+only appear in Hadoop, and future development will primarily occur there.
+
 ## Overview
 
 Dynamometer is a tool to performance test Hadoop's HDFS NameNode. The intent is to provide a
@@ -25,6 +31,15 @@ top of which Dynamometer is run.
 
 Dynamometer is based around YARN applications, so an existing YARN cluster will be required for execution.
 It also requires an accompanying HDFS instance to store some temporary files for communication.
+
+Please be aware that Dynamometer makes certain assumptions about HDFS, and thus only works with certain
+versions. As discussed at the start of this README, this project only works with Hadoop 2; support for
+Hadoop 3 is introduced in the version of Dynamometer within the Hadoop repository. Below is a list of known
+supported versions of Hadoop which are compatible with Dynamometer:
+* Hadoop 2.7 starting at 2.7.4
+* Hadoop 2.8 starting at 2.8.4
+
+Hadoop 2.8.2 and 2.8.3 are compatible as a cluster version on which to run Dynamometer, but are not supported as a version-under-test.
 
 ## Building
 
