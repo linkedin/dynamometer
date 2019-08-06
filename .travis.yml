@@ -12,10 +12,10 @@ jobs:
       script: "./gradlew build -x test"
     - stage: test
       script: "./gradlew test --stacktrace --info -Ddyno.hadoop.bin.version=${HADOOP_VERSION}"
-      env: HADOOP_VERSION=2.7.6
+      env: HADOOP_VERSION=2.7.7
     - stage: test
       script: "./gradlew test --stacktrace --info -Ddyno.hadoop.bin.version=${HADOOP_VERSION}"
-      env: HADOOP_VERSION=2.8.4
+      env: HADOOP_VERSION=2.8.5
     - stage: deploy
       script: "./gradlew build -s && ./gradlew ciPerformRelease"
 
