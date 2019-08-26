@@ -647,7 +647,7 @@ public class Client extends Configured implements Tool {
 
     Preconditions.checkArgument(srcPaths.length > 0, "Must supply at least one source path");
     Preconditions.checkArgument(resource.getType() == LocalResourceType.ARCHIVE || srcPaths.length == 1,
-        "Can only specify multiple source paths if using an ARCHIVE type");
+        "Can only specify one source paths if using an ARCHIVE type");
 
     List<URI> srcURIs = Arrays.stream(srcPaths).map(URI::create).collect(Collectors.toList());
     Set<String> srcSchemes = srcURIs.stream().map(URI::getScheme).collect(Collectors.toSet());
