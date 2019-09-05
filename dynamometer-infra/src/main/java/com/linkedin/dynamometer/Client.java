@@ -335,12 +335,12 @@ public class Client extends Configured implements Tool {
    */
   public boolean init(String[] args) throws ParseException, IOException {
 
-    CommandLineParser parser = new GnuParser();
-    if (parser.parse(new Options().addOption("h", "help", false, "Shows this message."), args, true).hasOption("h")) {
+    if (Arrays.stream(args).anyMatch(arg -> arg.equalsIgnoreCase("-h") || arg.equals("--help"))) {
       printUsage();
       return false;
     }
 
+    CommandLineParser parser = new GnuParser();
     CommandLine cliParser = parser.parse(opts, args);
 
     yarnClient = YarnClient.createYarnClient();
