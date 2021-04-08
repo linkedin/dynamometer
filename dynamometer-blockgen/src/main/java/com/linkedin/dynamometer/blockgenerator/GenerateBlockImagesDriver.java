@@ -18,6 +18,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
@@ -81,7 +82,9 @@ public class GenerateBlockImagesDriver extends Configured implements Tool {
     int numReducers = Integer.parseInt(cli.getOptionValue(NUM_REDUCERS_ARG, String.valueOf(numDataNodes)));
 
     FileSystem fs = FileSystem.get(new URI(blockImageOutputDir), getConf());
-    Job job = Job.getInstance(getConf(), "Create blocksImages for Dynamometer");
+    JobConf jobConf = new JobConf(getConf());
+    jobConf.setQueueName("hadoop-adhoc");
+    Job job = Job.getInstance(jobConf, "Create blocksImages for Dynamometer");
     FileInputFormat.setInputPaths(job, new Path(fsImageInputPath));
     Path blockImagesDir = new Path(blockImageOutputDir);
     fs.delete(blockImagesDir, true);
