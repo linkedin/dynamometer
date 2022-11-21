@@ -188,7 +188,8 @@ public class AuditReplayMapper extends WorkloadMapper<LongWritable, Text, UserCo
   public void setup(final Mapper.Context context) throws IOException {
     Configuration conf = context.getConfiguration();
     // WorkloadDriver ensures that the starttimestamp is set
-    startTimestampMs = conf.getLong(WorkloadDriver.START_TIMESTAMP_MS, -1);
+    // startTimestampMs = conf.getLong(WorkloadDriver.START_TIMESTAMP_MS, -1);
+    startTimestampMs = System.currentTimeMillis();
     numThreads = conf.getInt(NUM_THREADS_KEY, NUM_THREADS_DEFAULT);
     rateFactor = conf.getDouble(RATE_FACTOR_KEY, RATE_FACTOR_DEFAULT);
     targetUgi = conf.get(LOAD_TEST_UGI);

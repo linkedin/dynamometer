@@ -124,11 +124,11 @@ public class WorkloadDriver extends Configured implements Tool {
 
     Job job = Job.getInstance(conf, "Dynamometer Workload Driver");
 
-    JobConf jobConf = new JobConf(conf);
-    jobConf.setMemoryForMapTask(8192);
-    jobConf.setQueueName("hadoop-adhoc");
-    Job job = Job.getInstance(jobConf, "Dynamometer Workload Driver");
-    job.setOutputFormatClass(NullOutputFormat.class);
+    // JobConf jobConf = new JobConf(conf);
+    // jobConf.setMemoryForMapTask(8192);
+    // jobConf.setQueueName("hadoop-adhoc");
+    // Job job = Job.getInstance(jobConf, "Dynamometer Workload Driver");
+    // job.setOutputFormatClass(NullOutputFormat.class);
     job.setJarByClass(mapperClass);
     job.setMapperClass(mapperClass);
     mapperClass.newInstance().configureJob(job);

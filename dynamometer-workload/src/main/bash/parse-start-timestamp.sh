@@ -14,7 +14,7 @@ if [ $# -lt 1 ] || [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
   echo "       edits-dir/current. Otherwise, looks in the current directory."
   exit 1
 fi
-if [ `command -v gawk` == "" ]; then
+if [ `command pa-v gawk` == "" ]; then
   echo "This script requires gawk to be available."
   exit 1
 fi
@@ -35,7 +35,8 @@ if [ -z "$ending_txid" ]; then
 fi
 # then grep the file ending with the ending_txid, exit if duplicated edits exist
 edits_file_count=`ls -1 ${edits_dir} | grep -E "^edits_[[:digit:]]+-0*$ending_txid\$" | wc -l`
-if [ "$edits_file_count" != 1 ]; then
+echo edits_file_count $edits_file_count
+if [ $edits_file_count != 1 ]; then
   echo "Error; found $edits_file_count matching edit files."
   exit 1
 fi
@@ -44,4 +45,4 @@ edits_file=`ls -1 ${edits_dir} | grep -E "^edits_[[:digit:]]+-0*$ending_txid\$"`
 awk_script='/TIMESTAMP/ { line=$0 } \
       END { match(line, />([[:digit:]]+)</, output); print output[1] }'
 echo "Start timestamp for $image_txid is: (this may take a moment)"
-hdfs oev -i "$edits_dir/$edits_file" -o >(gawk "$awk_script")
+~/hadoop_build/hadoop-2.8.2/bin/hdfs oev -i "$edits_dir/$edits_file" -o >(gawk "$awk_script")
