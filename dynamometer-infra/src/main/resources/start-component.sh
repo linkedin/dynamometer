@@ -134,6 +134,17 @@ EOF
 if [ "$component" = "datanode" ]; then
 
   dataDirsOrig=`hdfs getconf $configOverrides -confKey dfs.datanode.data.dir`
+  echo dataDirsOrig $dataDirsOrig
+
+  # ignoring log statements in output
+  SAVEIFS=$IFS
+  IFS=$'\n'
+  dataDirsOrig=($dataDirsOrig)
+  IFS=$SAVEIFS
+  last_line="${names[${#names[@]}-1]}"
+  dataDirsOrig=$last_line
+  echo dataDirsOrig $dataDirsOrig
+
   if [ $? -ne 0 ]; then
     echo "Unable to fetch data directories from config; using default"
     dataDirsOrig="/data-dir/1,/data-dir/2"

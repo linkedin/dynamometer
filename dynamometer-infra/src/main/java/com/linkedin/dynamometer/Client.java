@@ -337,10 +337,6 @@ public class Client extends Configured implements Tool {
   public boolean init(String[] args) throws ParseException, IOException {
 
     CommandLineParser parser = new GnuParser();
-    if (parser.parse(new Options().addOption("h", "help", false, "Shows this message."), args, true).hasOption("h")) {
-      printUsage();
-      return false;
-    }
 
     CommandLine cliParser = parser.parse(opts, args);
 

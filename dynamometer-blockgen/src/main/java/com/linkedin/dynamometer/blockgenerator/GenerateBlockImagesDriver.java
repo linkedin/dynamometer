@@ -46,6 +46,8 @@ public class GenerateBlockImagesDriver extends Configured implements Tool {
   public static final String BLOCK_IMAGE_OUTPUT_ARG = "block_image_output_dir";
   public static final String NUM_REDUCERS_ARG = "num_reducers";
   public static final String NUM_DATANODES_ARG = "num_datanodes";
+  public static final String QUEUE_ARG = "queue";
+  public static final String QUEUE_DEFAULT = "hadoop-adhoc";
 
   public static final String NUM_DATANODES_KEY = "dyno.blockgen.num.datanodes";
 
@@ -65,6 +67,8 @@ public class GenerateBlockImagesDriver extends Configured implements Tool {
         .withDescription("Number of reducers for this job (defaults to number of datanodes)").create(NUM_REDUCERS_ARG));
     options.addOption(OptionBuilder.withArgName("Number of datanodes").hasArg().isRequired(true)
         .withDescription("Number of DataNodes to generate blocks for (required)").create(NUM_DATANODES_ARG));
+    options.addOption(QUEUE_ARG, true, "RM Queue in which this application is to be submitted (default '" +
+            QUEUE_DEFAULT + "')");
 
     CommandLineParser parser = new PosixParser();
     CommandLine cli = parser.parse(options, args);
@@ -83,7 +87,7 @@ public class GenerateBlockImagesDriver extends Configured implements Tool {
 
     FileSystem fs = FileSystem.get(new URI(blockImageOutputDir), getConf());
     JobConf jobConf = new JobConf(getConf());
-    jobConf.setQueueName("hadoop-adhoc");
+    jobConf.setQueueName(cli.getOptionValue(QUEUE_ARG, QUEUE_DEFAULT));
     Job job = Job.getInstance(jobConf, "Create blocksImages for Dynamometer");
     FileInputFormat.setInputPaths(job, new Path(fsImageInputPath));
     Path blockImagesDir = new Path(blockImageOutputDir);
