@@ -233,11 +233,24 @@ EOF
   fi
 
   nameDir=${NN_NAME_DIR:-${baseDir}/name-data}
-  editsDir=${NN_EDITS_DIR:-${baseDir}/name-data}
   checkpointDir="$baseDir/checkpoint"
-  rm -rf "$nameDir" "$editsDir" "$checkpointDir"
-  mkdir -p "$nameDir/current" "$editsDir/current" "$checkpointDir"
-  chmod -R 700 "$nameDir" "$editsDir" "$checkpointDir"
+  rm -rf "$nameDir" "$checkpointDir"
+  mkdir -p "$nameDir/current" "$checkpointDir"
+  chmod -R 700 "$nameDir" "$checkpointDir"
+  qjournalprefix="qjournal://"
+  if [[ "$NN_EDITS_DIR" == $qjournalprefix* ]]; then
+    editsDir="$NN_EDITS_DIR"
+    sharedEditsDir="$NN_EDITS_DIR"
+    editsDirPathPrefix=""
+  else
+    editsDir=${NN_EDITS_DIR:-${baseDir}/name-data}
+    sharedEditsDir=""
+    editsDirPathPrefix="file://"
+    rm -rf "$editsDir"
+    mkdir -p "$editsDir/current"
+    chmod -R 700 "$editsDir"
+  fi
+
   fsImageFile="`ls -1 | grep -E '^fsimage_[[:digit:]]+$' | tail -n 1`"
   fsImageMD5File="`ls -1 | grep -E '^fsimage_[[:digit:]]+.md5$' | tail -n 1`"
   ln -snf "`pwd`/$fsImageFile" "$nameDir/current/$fsImageFile"
@@ -252,7 +265,8 @@ EOF
   -D dfs.namenode.http-address=${nnHostname}:${nnHttpPort}
   -D dfs.namenode.https-address=${nnHostname}:0
   -D dfs.namenode.name.dir=file://${nameDir}
-  -D dfs.namenode.edits.dir=file://${editsDir}
+  -D dfs.namenode.edits.dir=${editsDirPathPrefix}${editsDir}
+  -D dfs.namenode.shared.edits.dir=${sharedEditsDir}
   -D dfs.namenode.checkpoint.dir=file://${baseDir}/checkpoint
   -D dfs.namenode.kerberos.internal.spnego.principal=
   -D dfs.hosts=
